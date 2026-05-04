@@ -420,7 +420,7 @@ function playBallotFinishSound() {
     oscillator.frequency.setValueAtTime(note.freq, cursor);
 
     gainNode.gain.setValueAtTime(0.0001, cursor);
-    gainNode.gain.exponentialRampToValueAtTime(0.13, cursor + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.5, cursor + 0.02);
     gainNode.gain.exponentialRampToValueAtTime(0.0001, cursor + note.duration);
 
     oscillator.connect(gainNode);
