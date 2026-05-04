@@ -6,8 +6,8 @@ import {
 
 const BOOTH_UNIT_KEY = "urna-escolar-booth-unit";
 const FINISH_DELAY_MS = 2600;
-const TECH_LOGO_URL = "file:///C:/Users/Detic%20Michael/Pictures/para%20png/png/Design%20sem%20nome.png";
-const MUNICIPAL_LOGO_URL = "file:///C:/Users/Detic%20Michael/Pictures/para%20png/ChatGPT%20Image%2030%20de%20abr.%20de%202026,%2015_19_43.png";
+const TECH_LOGO_URL = "https://drive.google.com/file/d/1ssrpwRZQtpvA36WyhjA2lxJPKIwwfCh_";
+const MUNICIPAL_LOGO_URL = "https://drive.google.com/file/d/19uXdvPihdZBwmQWGQQ4qWtSG6WUBD3v4";
 
 const appRoot = document.querySelector("#app");
 const uiState = {
