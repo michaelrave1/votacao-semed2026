@@ -1,26 +1,18 @@
 :root {
-  --bg: #0b1626;
-  --bg-soft: #121f36;
-
-  --panel: #162338;
-  --panel-strong: #1c2d46;
-
-  --ink: #eaf2ff;
-  --muted: #9fb3c8;
-
-  --brand: #3b82f6;
-  --brand-strong: #1d4ed8;
-
-  --accent: #60a5fa;
-  --accent-soft: #93c5fd;
-
-  --danger: #ef4444;
-  --danger-soft: #fca5a5;
-
-  --info: #38bdf8;
-
-  --shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
-
+  --bg: #0b1e3a;           
+  --bg-soft: #0f2a52;      
+  --panel: #132f57;        
+  --panel-strong: #1a3f73;
+  --ink: #f1f6ff;          
+  --muted: #b6c9e3;
+  --brand: #2d7df6;        
+  --brand-strong: #1c56b3;
+  --accent: #4da3ff;
+  --accent-soft: #9fd0ff;
+  --danger: #c0392b;
+  --danger-soft: #f5b7b1;
+  --info: #3498db;
+  --shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
   --radius: 24px;
   --radius-sm: 14px;
 }
@@ -34,11 +26,10 @@ body {
   min-height: 100vh;
   font-family: "Trebuchet MS", "Segoe UI", sans-serif;
   color: var(--ink);
-
   background:
-    radial-gradient(circle at top left, rgba(59, 130, 246, 0.25), transparent 30%),
-    radial-gradient(circle at bottom right, rgba(29, 78, 216, 0.18), transparent 28%),
-    linear-gradient(145deg, var(--bg), #0f1c2e 45%, var(--bg-soft));
+    radial-gradient(circle at top left, rgba(77, 163, 255, 0.25), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(45, 125, 246, 0.2), transparent 28%),
+    linear-gradient(145deg, var(--bg), #0d2545 45%, var(--bg-soft));
 }
 
 body::before {
@@ -46,8 +37,8 @@ body::before {
   position: fixed;
   inset: 0;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
   background-size: 28px 28px;
   pointer-events: none;
 }
@@ -64,19 +55,60 @@ button {
 }
 
 #app {
+  position: relative;
   min-height: 100vh;
 }
 
-/* HEADER / FOOTER */
+.brand-frame {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.brand-header,
+.brand-footer {
+  width: 100%;
+  padding: 12px 16px;
+}
+
 .brand-header-inner,
 .brand-footer-inner {
-  background: rgba(22, 35, 56, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  width: min(1320px, calc(100vw - 24px));
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border-radius: 22px;
+  background: rgba(10, 25, 55, 0.85);
   backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: var(--shadow);
 }
 
-/* CARDS */
+.brand-logo,
+.brand-logo-footer {
+  display: block;
+  object-fit: contain;
+}
+
+.brand-logo.municipal,
+.brand-logo-footer.municipal {
+  height: clamp(52px, 8vw, 86px);
+}
+
+.brand-logo.tech,
+.brand-logo-footer.tech {
+  height: clamp(56px, 8vw, 92px);
+}
+
+.shell {
+  width: min(1180px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 28px 0 40px;
+}
+
 .hero-card,
 .panel,
 .urna-card,
@@ -85,106 +117,137 @@ button {
 .table-card,
 .form-card,
 .status-strip {
-  background: rgba(22, 35, 56, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(15, 42, 82, 0.92);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
 
-/* INPUTS */
-.field input,
-.field select,
-.field textarea {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+.headline {
   color: var(--ink);
 }
 
-.field input::placeholder {
-  color: rgba(255, 255, 255, 0.5);
-}
-
-/* BOTÕES */
-.btn-primary {
-  background: linear-gradient(180deg, var(--accent-soft), var(--accent));
-  color: #08121f;
-}
-
-.btn-secondary {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: var(--ink);
-}
-
-.btn-danger {
-  background: linear-gradient(180deg, #ef4444, #b91c1c);
-  color: white;
-}
-
-.btn-success {
-  background: linear-gradient(180deg, #22c55e, #15803d);
-  color: white;
-}
-
-/* TEXTO */
-.subtle {
+.lead {
   color: var(--muted);
 }
 
-/* CARDS INTERNOS */
+.login-card {
+  background: linear-gradient(180deg, #1c56b3, #0b2f6b);
+  color: white;
+}
+
+.field input,
+.field select,
+.field textarea {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.field input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.field-light input,
+.field-light select,
+.field-light textarea {
+  background: #0f2a52;
+  color: var(--ink);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, var(--accent-soft), var(--accent));
+  color: #001a33;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-neutral {
+  background: #1a3f73;
+  color: var(--ink);
+}
+
 .stat-card {
-  background: var(--panel);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(10, 25, 55, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.empty-state {
-  background: var(--panel);
-}
-
-/* TABELA */
-table th,
-table td {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-/* URNA */
-.urna-card {
-  background: linear-gradient(180deg, #1c2d46, #121f36);
+.candidate-list-item {
+  background: rgba(10, 25, 55, 0.8);
 }
 
 .urna-display {
-  background: linear-gradient(180deg, #162338, #0f1c2e);
+  background: linear-gradient(180deg, #0f2a52, #0b1e3a);
 }
 
 .digit-box {
-  background: #0f1c2e;
+  background: #0b1e3a;
   color: var(--ink);
   border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
-/* LISTA */
-.candidate-list-item {
-  background: rgba(255, 255, 255, 0.05);
+.empty-state {
+  background: #0f2a52;
+  color: var(--muted);
 }
 
-.candidate-list-item.active {
-  background: rgba(59, 130, 246, 0.2);
+table {
+  color: var(--ink);
 }
 
-/* RESPONSIVO */
+th {
+  color: var(--muted);
+}
+
 @media (max-width: 1080px) {
   .hero-card,
   .urna-card,
   .admin-grid {
     grid-template-columns: 1fr;
   }
+
+  .results-grid,
+  .summary-grid,
+  .hero-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .candidate-list-panel {
+    max-height: none;
+  }
 }
 
 @media (max-width: 720px) {
+  .brand-header,
+  .brand-footer {
+    padding: 8px;
+  }
+
+  .brand-header-inner,
+  .brand-footer-inner {
+    width: min(100vw - 16px, 100%);
+    flex-direction: column;
+    justify-content: center;
+    padding: 12px;
+  }
+
+  .shell,
+  .shell-simple,
+  .urna-shell,
+  .admin-shell {
+    width: min(100vw - 16px, 100%);
+  }
+
   .hero-card,
   .panel,
   .urna-card,
   .admin-layout {
     padding: 16px;
+    border-radius: 22px;
   }
 }
