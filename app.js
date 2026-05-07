@@ -5,7 +5,7 @@ import {
   subscribeToElectionState,
 } from "./firebase-store.js";
 const FINISH_DELAY_MS = 2600;
-const VOTER_TYPES = ["Familiar de Aluno", "Funcionário Público","Aluno EJA 16+" ];
+const VOTER_TYPES = ["Familiar ou responsável legal do aluno", "Servidor, Servidora da Unidade","Aluno (EJA 16+)" ];
 const TECH_LOGO_URL = "https://drive.google.com/uc?export=view&id=1ssrpwRZQtpvA36WyhjA2lxJPKIwwfCh_";
 const MUNICIPAL_LOGO_URL = "https://drive.google.com/uc?export=view&id=19uXdvPihdZBwmQWGQQ4qWtSG6WUBD3v4";
 const FINISH_SOUND_URL = "./assets/urna-final.mp3";
@@ -1140,19 +1140,27 @@ function renderStatusScreen(title, message) {
 }
 
 function renderAppFrame(content) {
+  const currentAccess = getCurrentAccess();
+  const showLogout = currentAccess && ["admin", "mesario"].includes(uiState.screen);
+
   return `
     <div class="brand-frame">
       <header class="brand-header">
         <div class="brand-header-inner">
-          <img class="brand-logo municipal" src="${MUNICIPAL_LOGO_URL}" alt="Logotipo Secretaria de Educação de Uberaba">
-          <img class="brand-logo tech" src="${TECH_LOGO_URL}" alt="Logotipo Departamento de Educação Tecnológica">
+          <div class="app-brand">
+            <div class="login-mark">UE</div>
+            <div>
+              <strong>Urna Escolar SEMED</strong>
+              <span>Eleição de Diretores das Unidades Escolares</span>
+            </div>
+          </div>
+          ${showLogout ? '<button class="topbar-logout" type="button" data-action="logout">Sair</button>' : ""}
         </div>
       </header>
       ${content}
       <footer class="brand-footer">
         <div class="brand-footer-inner">
           <img class="brand-logo-footer tech" src="${TECH_LOGO_URL}" alt="Logotipo Departamento de Educação Tecnológica">
-          <img class="brand-logo-footer municipal" src="${MUNICIPAL_LOGO_URL}" alt="Logotipo Secretaria de Educação de Uberaba">
         </div>
       </footer>
     </div>
@@ -1160,39 +1168,20 @@ function renderAppFrame(content) {
 }
 
 function renderLoginScreen() {
-  const mesarios = appState.accessAccounts.filter((account) => account.accessKind === "MESARIO");
-  const sessions = appState.votingSessions.length;
-  const votes = appState.votes.length;
-
   return `
-    <main class="shell">
-      <section class="hero-card">
+    <main class="login-page">
+      <header class="login-topbar">
+        <div class="login-mark">UE</div>
         <div>
-          <span class="eyebrow">Sistema de votação escolar</span>
-          <h1 class="headline">Acesso ao sistema</h1>
-          <p class="lead">Entre com suas credenciais para continuar.</p>
-          <div class="hero-stats">
-            <article class="stat-card">
-              <small>Unidades escolares</small>
-              <strong>${appState.units.length}</strong>
-              <span class="subtle">Todas as escolas informadas já estão cadastradas na base inicial.</span>
-            </article>
-            <article class="stat-card">
-              <small>Mesários iniciais</small>
-              <strong>${mesarios.length}</strong>
-              <span class="subtle">Um acesso de mesário de demonstração por unidade escolar.</span>
-            </article>
-            <article class="stat-card">
-              <small>Sessões geradas</small>
-              <strong>${sessions}</strong>
-              <span class="subtle">${votes} votos já sincronizados com o Firestore deste projeto.</span>
-            </article>
-          </div>
+          <strong>Urna Escolar SEMED</strong>
+          <span>Eleição de Diretores das Unidades Escolares</span>
         </div>
+      </header>
+      <img class="login-watermark" src="${MUNICIPAL_LOGO_URL}" alt="">
+      <section class="login-panel">
         <aside class="login-card">
           <div>
-            <h2>Login do mesário</h2>
-            <p class="subtle">Use o acesso administrativo ou entre com o mesário da unidade para iniciar novas votações.</p>
+            <h2>Acesso ao sistema</h2>
           </div>
           ${uiState.loginError ? `<div class="flash flash-error">${escapeHtml(uiState.loginError)}</div>` : ""}
           <form id="login-form" class="field-grid">
@@ -1226,111 +1215,75 @@ function renderMesarioScreen() {
   const liveSession = liveAssignment
     ? appState.votingSessions.find((session) => session.id === liveAssignment.sessionId) || null
     : null;
-  const sessions = appState.votingSessions.filter((session) => session.mesarioId === mesario.id).slice(0, 8);
-  const unitCandidates = appState.candidates.filter((candidate) => candidate.unitId === mesario.unitId);
-
   return `
-    <main class="admin-shell">
-      <section class="admin-layout">
-        <header class="admin-header">
+    <main class="mesario-page">
+      <section class="mesario-dashboard">
+        <aside class="mesario-profile-card">
+          <h1>Mesário</h1>
+          <p>${escapeHtml(mesario.email)}</p>
+          <strong>${unit ? escapeHtml(unit.name) : "Sem unidade"}</strong>
+        </aside>
+
+        <section class="vote-release-card">
           <div>
-            <span class="eyebrow">Tela operacional do mesário</span>
-            <h1 class="headline" style="font-size: clamp(2rem, 3.2vw, 3.1rem); margin-bottom: 8px;">Selecione o perfil do votante e inicie a votacao</h1>
-            <p class="lead">
-              O mesario permanece logado nesta unidade. Depois de cada voto, a aplicacao retorna aqui para comecar um novo processo.
-            </p>
+            <h2>Liberação de voto</h2>
+            <p>Selecione o tipo de eleitor para gerar um código único e abrir a urna.</p>
           </div>
-          <div class="actions-row">
-            <div class="badge">${escapeHtml(mesario.name)}</div>
-            <div class="badge">${unit ? escapeHtml(unit.name) : "Sem unidade"}</div>
-            ${liveSession ? '<button class="btn btn-secondary" type="button" data-action="resume-session">Retomar votacao atual</button>' : ""}
-            <button class="btn btn-neutral" type="button" data-action="logout">Sair</button>
-          </div>
-        </header>
 
-        <section class="summary-grid">
-          ${summaryCard("Unidade do mesário", unit ? "1" : "0", unit ? unit.name : "Nenhuma unidade vinculada")}
-          ${summaryCard("Chapas desta escola", unitCandidates.length, "A urna exibirá somente essas opções ao digitar o número.")}
-          ${summaryCard("Sessões deste mesário", sessions.length, "Últimas sessões abertas por este acesso.")}
-          ${summaryCard("Sessao da unidade", liveSession ? liveSession.status : "Pronta", liveSession ? `Token ativo: ${liveSession.token}` : "Nenhuma votacao liberada no momento.")}
-        </section>
+          ${uiState.sessionNotice ? `<div class="flash flash-success">${escapeHtml(uiState.sessionNotice)}</div>` : ""}
+          ${
+            liveSession
+              ? `<div class="flash flash-neutral">Votação em andamento: <strong>${escapeHtml(liveSession.token)}</strong></div>`
+              : ""
+          }
 
-        <section class="admin-grid">
-          <article class="form-card stack">
-            <div>
-              <h2 class="section-title">Iniciar nova votação</h2>
-              <p class="subtle">Escolha o perfil do votante. A urna sera aberta na mesma tela logo apos a liberacao.</p>
+          <form id="session-form" class="vote-release-form">
+            <div class="voter-type-grid">
+              ${VOTER_TYPES.map((type, index) => renderVoterTypeCard(type, index)).join("")}
             </div>
-            ${uiState.sessionNotice ? `<div class="flash flash-success">${escapeHtml(uiState.sessionNotice)}</div>` : ""}
-            <form id="session-form" class="field-grid">
-              <div class="field field-light">
-                <label for="voterType">Perfil do votante</label>
-                <select id="voterType" name="voterType">
-                  ${VOTER_TYPES.map((type) => optionTag(type, VOTER_TYPES[0], type)).join("")}
-                </select>
-              </div>
-              <div class="status-strip">
-                <span>
-                  <strong>Filtro automático por unidade</strong><br>
-                  <span class="subtle">As chapas da urna serão carregadas somente da escola do mesário logado.</span>
-                </span>
-              </div>
-              <button class="btn btn-primary" type="submit">Iniciar votacao nesta tela</button>
-            </form>
-            ${
-              liveSession
-                ? `<div class="flash flash-neutral">Ja existe uma votacao em andamento no token <strong>${escapeHtml(liveSession.token)}</strong> para <strong>${escapeHtml(liveSession.voterType)}</strong>.</div>`
-                : ""
-            }
-            <div class="empty-state">
-              <strong>Fluxo da operacao</strong><br>
-              1. Login do mesario. 2. Selecione o perfil do votante. 3. A urna abre nesta mesma tela. 4. Confirme o voto e o sistema volta para espera.
+            <div class="release-actions">
+              <button class="btn btn-primary" type="submit">Acessar Urna Eletrônica</button>
+              ${liveSession ? '<button class="btn btn-secondary" type="button" data-action="resume-session">Retomar votação atual</button>' : ""}
             </div>
-          </article>
-
-          <article class="table-card stack">
-            <div class="status-strip">
-              <span>
-                <strong>Últimas sessões geradas</strong><br>
-                <span class="subtle">Histórico rápido do próprio mesário, com token e situação de cada liberação.</span>
-              </span>
+            <div class="release-note">
+              Ao acessar a urna, o sistema gera um código de liberação, identifica este voto no registro de segurança e impede reutilização após a confirmação.
             </div>
-            ${
-              sessions.length
-                ? `
-                  <div class="table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Data/hora</th>
-                          <th>Perfil do votante</th>
-                          <th>Token</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        ${sessions
-                          .map(
-                            (session) => `
-                              <tr>
-                                <td>${formatDateTime(session.createdAt)}</td>
-                                <td>${escapeHtml(session.voterType)}</td>
-                                <td><code>${escapeHtml(session.token)}</code></td>
-                                <td><span class="pill ${session.status === "Votou" ? "pill-voted" : "pill-awaiting"}">${session.status}</span></td>
-                              </tr>
-                            `,
-                          )
-                          .join("")}
-                      </tbody>
-                    </table>
-                  </div>
-                `
-                : `<div class="empty-state">Nenhuma sessão de votação foi gerada por este mesário ainda.</div>`
-            }
-          </article>
+          </form>
         </section>
       </section>
     </main>
+  `;
+}
+
+function renderVoterTypeCard(type, index) {
+  const cards = [
+    {
+      kicker: "Familiar / Representante",
+      title: "Familiar / Representante Legal",
+      icon: "family",
+    },
+    {
+      kicker: "Servidor SEMED",
+      title: "Servidor Público da Educação-SEMED",
+      icon: "server",
+    },
+    {
+      kicker: "EJA + 16 anos",
+      title: "EJA + 16anos",
+      icon: "book",
+    },
+  ];
+  const card = cards[index] || { kicker: type, title: type, icon: "book" };
+
+  return `
+    <label class="voter-type-card">
+      <input type="radio" name="voterType" value="${escapeHtml(type)}" ${index === 0 ? "checked" : ""}>
+      <span class="voter-illustration voter-illustration-${card.icon}">
+        <span></span>
+      </span>
+      <small>${escapeHtml(card.kicker)}</small>
+      <strong>${escapeHtml(card.title)}</strong>
+    </label>
   `;
 }
 
@@ -1951,12 +1904,11 @@ function renderResultsTab() {
   `;
 }
 
-function summaryCard(label, value, description) {
+function summaryCard(label, value) {
   return `
     <article class="summary-card">
       <small>${escapeHtml(label)}</small>
       <strong>${escapeHtml(value)}</strong>
-      <span class="subtle">${escapeHtml(description)}</span>
     </article>
   `;
 }
