@@ -8,6 +8,7 @@ const BOOTH_UNIT_KEY = "urna-escolar-booth-unit";
 const FINISH_DELAY_MS = 2600;
 const TECH_LOGO_URL = "https://drive.google.com/uc?export=view&id=1ssrpwRZQtpvA36WyhjA2lxJPKIwwfCh_";
 const MUNICIPAL_LOGO_URL = "https://drive.google.com/uc?export=view&id=19uXdvPihdZBwmQWGQQ4qWtSG6WUBD3v4";
+const FINISH_SOUND_URL = "./assets/urna-final.mp3";
 
 const appRoot = document.querySelector("#app");
 const uiState = {
@@ -20,7 +21,6 @@ const uiState = {
 
 let appState = createEmptyElectionState();
 let finishTimer = null;
-let audioContext = null;
 let isStateReady = false;
 let isSeedCheckComplete = false;
 let stateSyncError = "";
@@ -390,46 +390,8 @@ function confirmVoteLegacy() {
 }
 
 function playBallotFinishSound() {
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass) {
-    return;
-  }
-
-  if (!audioContext) {
-    audioContext = new AudioContextClass();
-  }
-
-  if (audioContext.state === "suspended") {
-    audioContext.resume().catch(() => {});
-  }
-
-  const startAt = audioContext.currentTime + 0.02;
-  const notes = [
-    { freq: 740, duration: 0.08, gap: 0.02 },
-    { freq: 740, duration: 0.08, gap: 0.04 },
-    { freq: 880, duration: 0.1, gap: 0.04 },
-    { freq: 1175, duration: 0.22, gap: 0 },
-  ];
-
-  let cursor = startAt;
-  notes.forEach((note, index) => {
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-
-    oscillator.type = index < notes.length - 1 ? "square" : "triangle";
-    oscillator.frequency.setValueAtTime(note.freq, cursor);
-
-    gainNode.gain.setValueAtTime(0.0001, cursor);
-    gainNode.gain.exponentialRampToValueAtTime(0.5, cursor + 0.02);
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, cursor + note.duration);
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    oscillator.start(cursor);
-    oscillator.stop(cursor + note.duration + 0.02);
-
-    cursor += note.duration + note.gap;
-  });
+  const sound = new Audio(FINISH_SOUND_URL);
+  sound.play().catch(() => {});
 }
 
 function renderApp() {

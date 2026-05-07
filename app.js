@@ -8,6 +8,7 @@ const FINISH_DELAY_MS = 2600;
 const VOTER_TYPES = ["Familiar de Aluno", "Funcionário Público","Aluno EJA 16+" ];
 const TECH_LOGO_URL = "https://drive.google.com/uc?export=view&id=1ssrpwRZQtpvA36WyhjA2lxJPKIwwfCh_";
 const MUNICIPAL_LOGO_URL = "https://drive.google.com/uc?export=view&id=19uXdvPihdZBwmQWGQQ4qWtSG6WUBD3v4";
+const FINISH_SOUND_URL = "./assets/urna-final.mp3";
 const UNIT_NAMES = [
   "E. M. ADOLFO BEZERRA DE MENEZES",
   "E. M. ARTHUR DE MELLO TEIXEIRA",
@@ -926,6 +927,7 @@ async function confirmVote() {
 
     resetBallotState();
     uiState.screen = "finish";
+    playBallotFinishSound();
     renderApp();
 
     clearTimeout(finishTimer);
@@ -995,6 +997,7 @@ function confirmVoteLegacy() {
 
   resetBallotState();
   uiState.screen = "finish";
+  playBallotFinishSound();
   renderApp();
 
   clearTimeout(finishTimer);
@@ -1002,6 +1005,11 @@ function confirmVoteLegacy() {
     returnToMesarioPanel(`Votação concluída. Token ${session.token} finalizado para ${session.voterType}.`);
     renderApp();
   }, FINISH_DELAY_MS);
+}
+
+function playBallotFinishSound() {
+  const sound = new Audio(FINISH_SOUND_URL);
+  sound.play().catch(() => {});
 }
 
 function returnToMesarioPanel(message = "") {
