@@ -6,8 +6,8 @@ import {
 } from "./firebase-store.js";
 const FINISH_DELAY_MS = 2600;
 const VOTER_TYPES = ["Familiar ou responsável legal do aluno", "Servidor, Servidora da Unidade","Aluno (EJA 16+)" ];
-const TECH_LOGO_URL = "https://drive.google.com/uc?export=view&id=1ssrpwRZQtpvA36WyhjA2lxJPKIwwfCh_";
-const MUNICIPAL_LOGO_URL = "https://drive.google.com/uc?export=view&id=19uXdvPihdZBwmQWGQQ4qWtSG6WUBD3v4";
+const TECH_LOGO_SRC = "./assets/logo-detic.png";
+const MUNICIPAL_LOGO_SRC = "./assets/logo-municipal.png";
 const FINISH_SOUND_URL = "./assets/urna-final.mp3";
 const UNIT_NAMES = [
   "E. M. ADOLFO BEZERRA DE MENEZES",
@@ -1160,7 +1160,7 @@ function renderAppFrame(content) {
       ${content}
       <footer class="brand-footer">
         <div class="brand-footer-inner">
-          <img class="brand-logo-footer tech" src="${TECH_LOGO_URL}" alt="Logotipo Departamento de Educação Tecnológica">
+          <img class="brand-logo-footer tech" src="${TECH_LOGO_SRC}" alt="Logotipo Departamento de Educação Tecnológica">
         </div>
       </footer>
     </div>
@@ -1177,7 +1177,7 @@ function renderLoginScreen() {
           <span>Eleição de Diretores das Unidades Escolares</span>
         </div>
       </header>
-      <img class="login-watermark" src="${MUNICIPAL_LOGO_URL}" alt="">
+      <img class="login-watermark" src="${MUNICIPAL_LOGO_SRC}" alt="">
       <section class="login-panel">
         <aside class="login-card">
           <div>
@@ -1779,6 +1779,36 @@ function renderResultsTab() {
   const sortedTotals = [...totals.values()].sort(
     (left, right) => right.count - left.count || left.candidateNumber.localeCompare(right.candidateNumber),
   );
+  const maxCandidateVotes = sortedTotals.length ? Math.max(...sortedTotals.map((item) => item.count)) : 0;
+
+  const unitTotals = new Map();
+  filteredVotes.forEach((vote) => {
+    const key = vote.unitId || vote.unitName || "sem-unidade";
+    if (!unitTotals.has(key)) {
+      unitTotals.set(key, {
+        unitId: vote.unitId,
+        unitName: vote.unitName || getUnitById(vote.unitId)?.name || "-",
+        total: 0,
+        valid: 0,
+        blank: 0,
+        nullVotes: 0,
+      });
+    }
+
+    const item = unitTotals.get(key);
+    item.total += 1;
+    if (vote.voteType === "Válido" || vote.voteType === "VÃ¡lido") {
+      item.valid += 1;
+    } else if (vote.voteType === "Em Branco") {
+      item.blank += 1;
+    } else if (vote.voteType === "Nulo") {
+      item.nullVotes += 1;
+    }
+  });
+
+  const sortedUnitTotals = [...unitTotals.values()].sort(
+    (left, right) => right.total - left.total || left.unitName.localeCompare(right.unitName, "pt-BR"),
+  );
 
   return `
     <section class="stack">
@@ -1817,8 +1847,82 @@ function renderResultsTab() {
 
       <article class="table-card stack">
         <div>
+          <h2 class="section-title">Gráfico por unidade e chapa</h2>
+          <p class="subtle">Votos válidos agrupados por unidade de ensino e chapa, conforme os filtros selecionados.</p>
+        </div>
+        ${
+          sortedTotals.length
+            ? `
+              <div class="results-chart">
+                ${sortedTotals
+                  .map((item) => {
+                    const unitName = getUnitById(item.unitId)?.name || "-";
+                    const width = maxCandidateVotes ? Math.max((item.count / maxCandidateVotes) * 100, 5) : 0;
+                    return `
+                      <article class="results-chart-row">
+                        <div class="results-chart-copy">
+                          <strong>${escapeHtml(unitName)}</strong>
+                          <span>${escapeHtml(item.candidateNumber)} - ${escapeHtml(item.candidateName || "-")}</span>
+                        </div>
+                        <div class="results-chart-track" aria-label="${escapeHtml(`${unitName} ${item.candidateNumber}`)}">
+                          <div class="results-chart-bar" style="width: ${width.toFixed(2)}%"></div>
+                        </div>
+                        <strong class="results-chart-value">${item.count}</strong>
+                      </article>
+                    `;
+                  })
+                  .join("")}
+              </div>
+            `
+            : `<div class="empty-state">Ainda não há votos válidos dentro dos filtros escolhidos.</div>`
+        }
+      </article>
+
+      <article class="table-card stack">
+        <div>
+          <h2 class="section-title">Total por unidade de ensino</h2>
+          <p class="subtle">Quantidade de votos por unidade dentro dos filtros atuais.</p>
+        </div>
+        ${
+          sortedUnitTotals.length
+            ? `
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Unidade</th>
+                      <th>Total</th>
+                      <th>Válidos</th>
+                      <th>Em branco</th>
+                      <th>Nulos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${sortedUnitTotals
+                      .map(
+                        (item) => `
+                          <tr>
+                            <td>${escapeHtml(item.unitName)}</td>
+                            <td><strong>${item.total}</strong></td>
+                            <td>${item.valid}</td>
+                            <td>${item.blank}</td>
+                            <td>${item.nullVotes}</td>
+                          </tr>
+                        `,
+                      )
+                      .join("")}
+                  </tbody>
+                </table>
+              </div>
+            `
+            : `<div class="empty-state">Nenhum voto encontrado para os filtros selecionados.</div>`
+        }
+      </article>
+
+      <article class="table-card stack">
+        <div>
           <h2 class="section-title">Total por chapa</h2>
-          <p class="subtle">Consolidação apenas dos votos válidos por unidade escolar e número da chapa.</p>
+          <p class="subtle">Quantidade de votos válidos por unidade de ensino e chapa.</p>
         </div>
         ${
           sortedTotals.length

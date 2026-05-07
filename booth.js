@@ -6,8 +6,8 @@ import {
 
 const BOOTH_UNIT_KEY = "urna-escolar-booth-unit";
 const FINISH_DELAY_MS = 2600;
-const TECH_LOGO_URL = "https://drive.google.com/uc?export=view&id=1ssrpwRZQtpvA36WyhjA2lxJPKIwwfCh_";
-const MUNICIPAL_LOGO_URL = "https://drive.google.com/uc?export=view&id=19uXdvPihdZBwmQWGQQ4qWtSG6WUBD3v4";
+const TECH_LOGO_SRC = "./assets/logo-detic.png";
+const MUNICIPAL_LOGO_SRC = "./assets/logo-municipal.png";
 const FINISH_SOUND_URL = "./assets/urna-final.mp3";
 
 const appRoot = document.querySelector("#app");
@@ -443,15 +443,15 @@ function renderAppFrame(content) {
     <div class="brand-frame">
       <header class="brand-header">
         <div class="brand-header-inner">
-          <img class="brand-logo municipal" src="${MUNICIPAL_LOGO_URL}" alt="Logotipo Secretaria de Educação de Uberaba">
-          <img class="brand-logo tech" src="${TECH_LOGO_URL}" alt="Logotipo Departamento de Educação Tecnológica">
+          <img class="brand-logo municipal" src="${MUNICIPAL_LOGO_SRC}" alt="Logotipo Secretaria de Educação de Uberaba">
+          <img class="brand-logo tech" src="${TECH_LOGO_SRC}" alt="Logotipo Departamento de Educação Tecnológica">
         </div>
       </header>
       ${content}
       <footer class="brand-footer">
         <div class="brand-footer-inner">
-          <img class="brand-logo-footer tech" src="${TECH_LOGO_URL}" alt="Logotipo Departamento de Educação Tecnológica">
-          <img class="brand-logo-footer municipal" src="${MUNICIPAL_LOGO_URL}" alt="Logotipo Secretaria de Educação de Uberaba">
+          <img class="brand-logo-footer tech" src="${TECH_LOGO_SRC}" alt="Logotipo Departamento de Educação Tecnológica">
+          <img class="brand-logo-footer municipal" src="${MUNICIPAL_LOGO_SRC}" alt="Logotipo Secretaria de Educação de Uberaba">
         </div>
       </footer>
     </div>

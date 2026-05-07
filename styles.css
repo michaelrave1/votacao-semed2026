@@ -1134,6 +1134,53 @@ th {
   gap: 10px;
 }
 
+.results-chart {
+  display: grid;
+  gap: 12px;
+}
+
+.results-chart-row {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.1fr) minmax(220px, 2fr) 56px;
+  gap: 14px;
+  align-items: center;
+}
+
+.results-chart-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.results-chart-copy strong {
+  color: #12314f;
+  font-size: 0.95rem;
+}
+
+.results-chart-copy span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.results-chart-track {
+  min-height: 18px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e7f1fb;
+}
+
+.results-chart-bar {
+  height: 18px;
+  min-width: 18px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brand), #0d86d7);
+  box-shadow: inset -8px 0 16px rgba(255, 255, 255, 0.22);
+}
+
+.results-chart-value {
+  color: var(--brand);
+  text-align: right;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
@@ -1283,6 +1330,14 @@ th {
   .action-keys,
   .voter-type-grid {
     grid-template-columns: 1fr;
+  }
+
+  .results-chart-row {
+    grid-template-columns: 1fr;
+  }
+
+  .results-chart-value {
+    text-align: left;
   }
 
   .app-brand span {
