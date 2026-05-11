@@ -119,6 +119,7 @@ const uiState = {
   tempCandidateMemberPhotos: {},
   candidateDraftTypology: "",
   candidateDraftUnitId: "",
+  candidateEditorOpen: false,
 };
 
 const appRoot = document.querySelector("#app");
@@ -412,6 +413,7 @@ function handleClick(event) {
     uiState.tempCandidateMemberPhotos = {};
     uiState.candidateDraftTypology = "";
     uiState.candidateDraftUnitId = "";
+    uiState.candidateEditorOpen = true;
     uiState.adminTab = "candidates";
     uiState.candidateNotice = "";
     renderApp();
@@ -421,6 +423,16 @@ function handleClick(event) {
     uiState.tempCandidateMemberPhotos = {};
     uiState.candidateDraftTypology = "";
     uiState.candidateDraftUnitId = "";
+    uiState.candidateEditorOpen = true;
+    uiState.candidateNotice = "";
+    renderApp();
+  } else if (action === "close-candidate-editor") {
+    uiState.activeCandidateId = null;
+    uiState.tempCandidatePhoto = "";
+    uiState.tempCandidateMemberPhotos = {};
+    uiState.candidateDraftTypology = "";
+    uiState.candidateDraftUnitId = "";
+    uiState.candidateEditorOpen = false;
     uiState.candidateNotice = "";
     renderApp();
   } else if (action === "delete-candidate") {
@@ -437,6 +449,7 @@ function handleClick(event) {
       uiState.tempCandidateMemberPhotos = {};
       uiState.candidateDraftTypology = "";
       uiState.candidateDraftUnitId = "";
+      uiState.candidateEditorOpen = false;
     }
     renderApp();
   } else if (action === "set-demo-user") {
@@ -887,6 +900,7 @@ async function submitCandidateForm(formData) {
       uiState.tempCandidateMemberPhotos = {};
       uiState.candidateDraftTypology = "";
       uiState.candidateDraftUnitId = "";
+      uiState.candidateEditorOpen = false;
       renderApp();
       return;
     }
@@ -899,6 +913,7 @@ async function submitCandidateForm(formData) {
     uiState.tempCandidateMemberPhotos = {};
     uiState.candidateDraftTypology = "";
     uiState.candidateDraftUnitId = "";
+    uiState.candidateEditorOpen = false;
     renderApp();
   } catch (error) {
     uiState.candidateNotice = "Nao foi possivel salvar a chapa no Firestore.";
@@ -1781,6 +1796,116 @@ function renderCandidateMemberFields(candidate, typologyValue) {
     .join("");
 }
 
+function renderCandidateEditorPage(editing, selectedUnit, selectedTypology) {
+  const currentPhoto = uiState.tempCandidatePhoto || (editing ? editing.photoData : "");
+
+  return `
+    <section class="candidate-editor-page">
+      <article class="form-card stack">
+        <div class="status-strip">
+          <span>
+            <strong>${editing ? "Editar chapa" : "Nova chapa"}</strong><br>
+            <span class="subtle">Cadastre a unidade, a tipologia e os integrantes que compõem a chapa.</span>
+          </span>
+          <button class="btn btn-neutral" type="button" data-action="close-candidate-editor">Voltar para chapas</button>
+        </div>
+        ${uiState.candidateNotice ? `<div class="flash flash-neutral">${escapeHtml(uiState.candidateNotice)}</div>` : ""}
+        <form id="candidate-form" class="field-grid">
+          <div class="split-fields">
+            <div class="field field-light">
+              <label for="candidate-number">Número</label>
+              <input id="candidate-number" name="number" inputmode="numeric" maxlength="3" value="${escapeHtml(editing ? editing.number : "")}" placeholder="101" required>
+            </div>
+            <div class="field field-light">
+              <label for="candidate-unit">Unidade escolar</label>
+              <select id="candidate-unit" name="unitId">
+                ${appState.units.map((unit) => optionTag(unit.id, selectedUnit ? selectedUnit.id : "", unit.name)).join("")}
+              </select>
+            </div>
+            <div class="field field-light">
+              <label for="candidate-typology">Tipologia da unidade</label>
+              <select id="candidate-typology" name="typology">
+                ${UNIT_TYPOLOGIES.map((tipology) => optionTag(tipology.value, selectedTypology, `${tipology.label} - ${tipology.roles.join(", ")}`)).join("")}
+              </select>
+            </div>
+          </div>
+          <div class="field field-light">
+            <label for="candidate-name">Nome da chapa</label>
+            <input id="candidate-name" name="name" value="${escapeHtml(editing ? editing.name : "")}" placeholder="Chapa Exemplo" required>
+          </div>
+          <div class="field field-light">
+            <label for="candidate-photo">Foto da chapa</label>
+            <input id="candidate-photo" type="file" accept="image/*">
+          </div>
+          ${currentPhoto ? `<img class="photo-preview" src="${currentPhoto}" alt="Prévia da chapa">` : ""}
+          <div class="candidate-members">
+            ${renderCandidateMemberFields(editing, selectedTypology)}
+          </div>
+          <div class="actions-row">
+            <button class="btn btn-primary" type="submit">${editing ? "Salvar chapa" : "Cadastrar chapa"}</button>
+            <button class="btn btn-neutral" type="button" data-action="close-candidate-editor">Cancelar</button>
+          </div>
+        </form>
+      </article>
+    </section>
+  `;
+}
+
+function renderCandidateListPage(candidates) {
+  return `
+    <section class="candidate-list-page">
+      <article class="table-card stack">
+        <div class="status-strip">
+          <span>
+            <strong>Chapas cadastradas</strong><br>
+            <span class="subtle">A unidade escolar é o filtro que determina quais opções aparecem na urna.</span>
+          </span>
+          <button class="btn btn-neutral" type="button" data-action="new-candidate">Nova chapa</button>
+        </div>
+        ${uiState.candidateNotice ? `<div class="flash flash-neutral">${escapeHtml(uiState.candidateNotice)}</div>` : ""}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Unidade</th>
+                <th>Número</th>
+                <th>Tipologia</th>
+                <th>Nome</th>
+                <th>Integrantes</th>
+                <th>Foto</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${candidates
+                .map((candidate) => {
+                  const unit = getUnitById(candidate.unitId);
+                  return `
+                    <tr>
+                      <td>${unit ? escapeHtml(unit.name) : "-"}</td>
+                      <td><strong>${escapeHtml(candidate.number)}</strong></td>
+                      <td>${escapeHtml(getTypology(getCandidateTypology(candidate)).label)}</td>
+                      <td>${escapeHtml(candidate.name)}</td>
+                      <td>${getCandidateMembers(candidate).map((member) => `<strong>${escapeHtml(member.role)}</strong>: ${escapeHtml(member.name)}`).join("<br>")}</td>
+                      <td><img class="photo-preview" style="max-width: 88px;" src="${candidate.photoData}" alt="Foto da chapa ${escapeHtml(candidate.name)}"></td>
+                      <td>
+                        <div class="inline-actions">
+                          <button class="btn btn-neutral" type="button" data-action="edit-candidate" data-value="${candidate.id}">Editar</button>
+                          <button class="btn btn-danger" type="button" data-action="delete-candidate" data-value="${candidate.id}">Remover</button>
+                        </div>
+                      </td>
+                    </tr>
+                  `;
+                })
+                .join("")}
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  `;
+}
+
 function renderCandidatesTab() {
   const editing = getActiveCandidate();
   const currentPhoto = uiState.tempCandidatePhoto || (editing ? editing.photoData : "");
@@ -1791,6 +1916,12 @@ function renderCandidatesTab() {
     const unitCompare = (getUnitById(left.unitId)?.name || "").localeCompare(getUnitById(right.unitId)?.name || "", "pt-BR");
     return unitCompare || left.number.localeCompare(right.number);
   });
+
+  if (uiState.candidateEditorOpen) {
+    return renderCandidateEditorPage(editing, selectedUnit, selectedTypology);
+  }
+
+  return renderCandidateListPage(candidates);
 
   return `
     <section class="admin-grid">

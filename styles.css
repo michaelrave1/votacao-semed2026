@@ -1184,6 +1184,12 @@ button {
   border-color: #d7e2ec;
 }
 
+.candidate-list-page,
+.candidate-editor-page {
+  display: grid;
+  gap: 18px;
+}
+
 .candidate-members {
   display: grid;
   gap: 12px;
