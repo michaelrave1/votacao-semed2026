@@ -5,6 +5,13 @@ import {
   subscribeToElectionState,
 } from "./firebase-store.js";
 const FINISH_DELAY_MS = 2600;
+const UNIT_TYPOLOGIES = [
+  { value: "1", label: "Tipo 1", roles: ["Diretor(a)"] },
+  { value: "2", label: "Tipo 2", roles: ["Diretor(a)", "Vice-diretor(a)"] },
+  { value: "3", label: "Tipo 3", roles: ["Diretor(a)", "Vice-diretor(a)"] },
+  { value: "4", label: "Tipo 4", roles: ["Diretor(a)", "Vice-diretor(a)"] },
+  { value: "5", label: "Tipo 5", roles: ["Diretor(a)", "Vice-diretor(a)", "Vice-diretor(a)"] },
+];
 const VOTER_TYPES = ["Familiar ou responsável legal do aluno", "Servidor, Servidora da Unidade","Aluno (EJA 16+)" ];
 const TECH_LOGO_SRC = "./assets/logo-detic.png";
 const MUNICIPAL_LOGO_SRC = "./assets/logo-municipal.png";
@@ -109,6 +116,9 @@ const uiState = {
   ballotBlank: false,
   ballotAlert: "",
   tempCandidatePhoto: "",
+  tempCandidateMemberPhotos: {},
+  candidateDraftTypology: "",
+  candidateDraftUnitId: "",
 };
 
 const appRoot = document.querySelector("#app");
@@ -191,10 +201,62 @@ function persistState(nextState) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
 }
 
+function normalizeTypology(value) {
+  const normalized = String(value || "1").replace(/^tipo\s*/i, "");
+  return UNIT_TYPOLOGIES.some((tipology) => tipology.value === normalized) ? normalized : "1";
+}
+
+function getTypology(value) {
+  const normalized = normalizeTypology(value);
+  return UNIT_TYPOLOGIES.find((tipology) => tipology.value === normalized) || UNIT_TYPOLOGIES[0];
+}
+
+function candidateRoleLabels(tipologyValue) {
+  let viceIndex = 0;
+  const typology = getTypology(tipologyValue);
+  const totalVices = typology.roles.filter((item) => item === "Vice-diretor(a)").length;
+  return typology.roles.map((role) => {
+    if (role !== "Vice-diretor(a)") {
+      return role;
+    }
+
+    viceIndex += 1;
+    return totalVices > 1 ? `${role} ${viceIndex}` : role;
+  });
+}
+
+function getCandidateMembers(candidate) {
+  if (Array.isArray(candidate?.members) && candidate.members.length) {
+    return candidate.members;
+  }
+
+  if (!candidate) {
+    return [];
+  }
+
+  return [
+    {
+      role: "Diretor(a)",
+      name: candidate.name || "",
+      photoData: candidate.photoData || "",
+    },
+  ];
+}
+
+function getCandidateTypology(candidate) {
+  if (candidate?.typology) {
+    return normalizeTypology(candidate.typology);
+  }
+
+  const unit = getUnitById(candidate?.unitId || "");
+  return normalizeTypology(unit?.typology);
+}
+
 function createSeedState() {
   const units = UNIT_NAMES.map((name, index) => ({
     id: `unit-${String(index + 1).padStart(2, "0")}-${slugify(name).slice(0, 24)}`,
     name,
+    typology: "1",
     officeTitle: "DIRETOR",
   }));
 
@@ -229,9 +291,17 @@ function createSeedState() {
     candidateTemplates.map((template) => ({
       id: makeId(),
       unitId: unit.id,
+      typology: unit.typology,
       number: template.number,
       name: template.name,
       photoData: buildAvatar(template.name, template.color),
+      members: [
+        {
+          role: "Diretor(a)",
+          name: template.name,
+          photoData: buildAvatar(template.name, template.color),
+        },
+      ],
     })),
   );
 
@@ -339,12 +409,18 @@ function handleClick(event) {
   } else if (action === "edit-candidate") {
     uiState.activeCandidateId = value;
     uiState.tempCandidatePhoto = "";
+    uiState.tempCandidateMemberPhotos = {};
+    uiState.candidateDraftTypology = "";
+    uiState.candidateDraftUnitId = "";
     uiState.adminTab = "candidates";
     uiState.candidateNotice = "";
     renderApp();
   } else if (action === "new-candidate") {
     uiState.activeCandidateId = null;
     uiState.tempCandidatePhoto = "";
+    uiState.tempCandidateMemberPhotos = {};
+    uiState.candidateDraftTypology = "";
+    uiState.candidateDraftUnitId = "";
     uiState.candidateNotice = "";
     renderApp();
   } else if (action === "delete-candidate") {
@@ -358,6 +434,9 @@ function handleClick(event) {
       uiState.activeCandidateId = null;
       uiState.candidateNotice = "";
       uiState.tempCandidatePhoto = "";
+      uiState.tempCandidateMemberPhotos = {};
+      uiState.candidateDraftTypology = "";
+      uiState.candidateDraftUnitId = "";
     }
     renderApp();
   } else if (action === "set-demo-user") {
@@ -413,10 +492,37 @@ function handleChange(event) {
     renderApp();
   }
 
+  if (target.id === "candidate-typology" && target instanceof HTMLSelectElement) {
+    uiState.candidateDraftTypology = normalizeTypology(target.value);
+    uiState.tempCandidateMemberPhotos = {};
+    renderApp();
+  }
+
+  if (target.id === "candidate-unit" && target instanceof HTMLSelectElement) {
+    const unit = getUnitById(target.value);
+    uiState.candidateDraftUnitId = target.value;
+    uiState.candidateDraftTypology = normalizeTypology(unit?.typology);
+    uiState.tempCandidateMemberPhotos = {};
+    renderApp();
+  }
+
   if (target.id === "candidate-photo" && target instanceof HTMLInputElement && target.files && target.files[0]) {
     const reader = new FileReader();
     reader.onload = () => {
       uiState.tempCandidatePhoto = typeof reader.result === "string" ? reader.result : "";
+      renderApp();
+    };
+    reader.readAsDataURL(target.files[0]);
+  }
+
+  if (target instanceof HTMLInputElement && target.dataset.memberPhotoIndex && target.files && target.files[0]) {
+    const photoIndex = target.dataset.memberPhotoIndex;
+    const reader = new FileReader();
+    reader.onload = () => {
+      uiState.tempCandidateMemberPhotos = {
+        ...uiState.tempCandidateMemberPhotos,
+        [photoIndex]: typeof reader.result === "string" ? reader.result : "",
+      };
       renderApp();
     };
     reader.readAsDataURL(target.files[0]);
@@ -662,8 +768,19 @@ async function submitCandidateForm(formData) {
     number: String(formData.get("number") || "").trim(),
     name: String(formData.get("name") || "").trim(),
     unitId: String(formData.get("unitId") || ""),
+    typology: normalizeTypology(formData.get("typology")),
     photoData: uiState.tempCandidatePhoto || (editing ? editing.photoData : ""),
   };
+  const previousMembers = getCandidateMembers(editing);
+  const members = candidateRoleLabels(payload.typology).map((role, index) => {
+    const previous = previousMembers[index] || {};
+    return {
+      role,
+      name: String(formData.get(`memberName${index}`) || "").trim(),
+      photoData: uiState.tempCandidateMemberPhotos[index] || previous.photoData || "",
+    };
+  });
+  const primaryMember = members[0] || null;
 
   if (!/^\d{3}$/.test(payload.number)) {
     uiState.candidateNotice = "O número da chapa precisa ter exatamente 3 dígitos.";
@@ -673,6 +790,12 @@ async function submitCandidateForm(formData) {
 
   if (!payload.name || !payload.unitId) {
     uiState.candidateNotice = "Preencha nome, número e unidade.";
+    renderApp();
+    return;
+  }
+
+  if (members.some((member) => !member.name)) {
+    uiState.candidateNotice = "Preencha os nomes de todos os cargos da tipologia selecionada.";
     renderApp();
     return;
   }
@@ -714,18 +837,39 @@ async function submitCandidateForm(formData) {
         latestEditing.number = payload.number;
         latestEditing.name = payload.name;
         latestEditing.unitId = payload.unitId;
-        latestEditing.photoData = payload.photoData || latestEditing.photoData;
+        latestEditing.typology = payload.typology;
+        latestEditing.photoData = payload.photoData || primaryMember?.photoData || latestEditing.photoData;
+        latestEditing.members = members.map((member, index) => ({
+          ...member,
+          photoData: member.photoData || (index === 0 ? latestEditing.photoData : buildAvatar(member.name, "#255d8b")),
+        }));
+        const latestUnit = draftState.units.find((unit) => unit.id === payload.unitId) || null;
+        if (latestUnit) {
+          latestUnit.typology = payload.typology;
+          latestUnit.officeTitle = candidateRoleLabels(payload.typology).join(", ").toUpperCase();
+        }
         return { status: "updated" };
       }
 
+      const photoData = payload.photoData || primaryMember?.photoData || buildAvatar(payload.name, "#1f6b46");
       draftState.candidates.unshift({
         id: makeId(),
         createdAt: new Date().toISOString(),
         number: payload.number,
         name: payload.name,
         unitId: payload.unitId,
-        photoData: payload.photoData || buildAvatar(payload.name, "#1f6b46"),
+        typology: payload.typology,
+        photoData,
+        members: members.map((member, index) => ({
+          ...member,
+          photoData: member.photoData || (index === 0 ? photoData : buildAvatar(member.name, "#255d8b")),
+        })),
       });
+      const latestUnit = draftState.units.find((unit) => unit.id === payload.unitId) || null;
+      if (latestUnit) {
+        latestUnit.typology = payload.typology;
+        latestUnit.officeTitle = candidateRoleLabels(payload.typology).join(", ").toUpperCase();
+      }
 
       return { status: "created" };
     });
@@ -740,6 +884,9 @@ async function submitCandidateForm(formData) {
       uiState.candidateNotice = "A chapa em ediÃ§Ã£o nÃ£o foi encontrada.";
       uiState.activeCandidateId = null;
       uiState.tempCandidatePhoto = "";
+      uiState.tempCandidateMemberPhotos = {};
+      uiState.candidateDraftTypology = "";
+      uiState.candidateDraftUnitId = "";
       renderApp();
       return;
     }
@@ -749,6 +896,9 @@ async function submitCandidateForm(formData) {
       : "Chapa cadastrada com sucesso.";
     uiState.activeCandidateId = null;
     uiState.tempCandidatePhoto = "";
+    uiState.tempCandidateMemberPhotos = {};
+    uiState.candidateDraftTypology = "";
+    uiState.candidateDraftUnitId = "";
     renderApp();
   } catch (error) {
     uiState.candidateNotice = "Nao foi possivel salvar a chapa no Firestore.";
@@ -1604,9 +1754,39 @@ function renderAccessTab() {
   `;
 }
 
+function renderCandidateMemberFields(candidate, typologyValue) {
+  const members = getCandidateMembers(candidate);
+  return candidateRoleLabels(typologyValue)
+    .map((role, index) => {
+      const member = members[index] || {};
+      const photo = uiState.tempCandidateMemberPhotos[index] || member.photoData || "";
+      return `
+        <article class="candidate-member-card">
+          <div class="candidate-member-photo">
+            ${photo ? `<img src="${photo}" alt="Foto de ${escapeHtml(member.name || role)}">` : "<span>Foto</span>"}
+          </div>
+          <div class="candidate-member-fields">
+            <div class="field field-light">
+              <label for="member-name-${index}">${escapeHtml(role)}</label>
+              <input id="member-name-${index}" name="memberName${index}" value="${escapeHtml(member.name || "")}" placeholder="Nome completo" required>
+            </div>
+            <div class="field field-light">
+              <label for="member-photo-${index}">Foto ${escapeHtml(role)}</label>
+              <input id="member-photo-${index}" type="file" accept="image/*" data-member-photo-index="${index}">
+            </div>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
 function renderCandidatesTab() {
   const editing = getActiveCandidate();
   const currentPhoto = uiState.tempCandidatePhoto || (editing ? editing.photoData : "");
+  const selectedUnitId = editing ? editing.unitId : uiState.candidateDraftUnitId;
+  const selectedUnit = selectedUnitId ? getUnitById(selectedUnitId) : appState.units[0];
+  const selectedTypology = uiState.candidateDraftTypology || (editing ? getCandidateTypology(editing) : normalizeTypology(selectedUnit?.typology));
   const candidates = [...appState.candidates].sort((left, right) => {
     const unitCompare = (getUnitById(left.unitId)?.name || "").localeCompare(getUnitById(right.unitId)?.name || "", "pt-BR");
     return unitCompare || left.number.localeCompare(right.number);
@@ -1617,7 +1797,7 @@ function renderCandidatesTab() {
       <article class="form-card stack">
         <div>
           <h2 class="section-title">${editing ? "Editar chapa" : "Nova chapa"}</h2>
-          <p class="subtle">Cadastre o número de 3 dígitos, nome, unidade escolar e foto da chapa.</p>
+          <p class="subtle">Cadastre a unidade, a tipologia e os integrantes que compõem a chapa.</p>
         </div>
         ${uiState.candidateNotice ? `<div class="flash flash-neutral">${escapeHtml(uiState.candidateNotice)}</div>` : ""}
         <form id="candidate-form" class="field-grid">
@@ -1629,7 +1809,13 @@ function renderCandidatesTab() {
             <div class="field field-light">
               <label for="candidate-unit">Unidade escolar</label>
               <select id="candidate-unit" name="unitId">
-                ${appState.units.map((unit) => optionTag(unit.id, editing ? editing.unitId : "", unit.name)).join("")}
+                ${appState.units.map((unit) => optionTag(unit.id, selectedUnit ? selectedUnit.id : "", unit.name)).join("")}
+              </select>
+            </div>
+            <div class="field field-light">
+              <label for="candidate-typology">Tipologia da unidade</label>
+              <select id="candidate-typology" name="typology">
+                ${UNIT_TYPOLOGIES.map((tipology) => optionTag(tipology.value, selectedTypology, `${tipology.label} - ${tipology.roles.join(", ")}`)).join("")}
               </select>
             </div>
           </div>
@@ -1642,6 +1828,9 @@ function renderCandidatesTab() {
             <input id="candidate-photo" type="file" accept="image/*">
           </div>
           ${currentPhoto ? `<img class="photo-preview" src="${currentPhoto}" alt="Prévia da chapa">` : ""}
+          <div class="candidate-members">
+            ${renderCandidateMemberFields(editing, selectedTypology)}
+          </div>
           <div class="actions-row">
             <button class="btn btn-primary" type="submit">${editing ? "Salvar chapa" : "Cadastrar chapa"}</button>
             <button class="btn btn-neutral" type="button" data-action="reset-form" data-value="candidate">Limpar formulário</button>
@@ -1663,7 +1852,9 @@ function renderCandidatesTab() {
               <tr>
                 <th>Unidade</th>
                 <th>Número</th>
+                <th>Tipologia</th>
                 <th>Nome</th>
+                <th>Integrantes</th>
                 <th>Foto</th>
                 <th>Ações</th>
               </tr>
@@ -1676,7 +1867,9 @@ function renderCandidatesTab() {
                     <tr>
                       <td>${unit ? escapeHtml(unit.name) : "-"}</td>
                       <td><strong>${escapeHtml(candidate.number)}</strong></td>
+                      <td>${escapeHtml(getTypology(getCandidateTypology(candidate)).label)}</td>
                       <td>${escapeHtml(candidate.name)}</td>
+                      <td>${getCandidateMembers(candidate).map((member) => `<strong>${escapeHtml(member.role)}</strong>: ${escapeHtml(member.name)}`).join("<br>")}</td>
                       <td><img class="photo-preview" style="max-width: 88px;" src="${candidate.photoData}" alt="Foto da chapa ${escapeHtml(candidate.name)}"></td>
                       <td>
                         <div class="inline-actions">
