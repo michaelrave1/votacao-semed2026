@@ -1220,8 +1220,9 @@ function renderMesarioScreen() {
       <section class="mesario-dashboard">
         <aside class="mesario-profile-card">
           <button class="mesario-info-button" type="button">
+            <em>1º</em>
             <strong>Eleitor(a)</strong>
-            <span>(indique aqui o perfil da pessoa que irá votar)</span>
+            <span>Qual é o perfil da pessoa que irá votar?</span>
           </button>
           <p>Mesário: ${escapeHtml(mesario.email)}</p>
           <small>${unit ? escapeHtml(unit.name) : "Sem unidade"}</small>
@@ -1241,13 +1242,14 @@ function renderMesarioScreen() {
             </div>
             <div class="release-actions">
               <button class="mesario-action-button" type="submit">
+                <em>2º</em>
                 <strong>Liberação da urna</strong>
                 <span>(clique aqui para gerar o código para liberar a votação)</span>
               </button>
               ${
                 liveSession
-                  ? '<button class="mesario-action-button" type="button" data-action="resume-session"><strong>Abertura da urna</strong><span>(clique aqui para abrir a urna para o(a) eleitor(a) iniciar a votação)</span></button>'
-                  : '<button class="mesario-action-button" type="submit"><strong>Abertura da urna</strong><span>(clique aqui para abrir a urna para o(a) eleitor(a) iniciar a votação)</span></button>'
+                  ? '<button class="mesario-action-button" type="button" data-action="resume-session"><em>3º</em><strong>Abertura da urna</strong><span>(clique aqui para abrir a urna para o(a) eleitor(a) iniciar a votação)</span></button>'
+                  : '<button class="mesario-action-button" type="submit"><em>3º</em><strong>Abertura da urna</strong><span>(clique aqui para abrir a urna para o(a) eleitor(a) iniciar a votação)</span></button>'
               }
             </div>
           </form>
@@ -1277,6 +1279,7 @@ function renderVoterTypeCard(type, index) {
   return `
     <label class="voter-type-card">
       <input type="radio" name="voterType" value="${escapeHtml(type)}" ${index === 0 ? "checked" : ""}>
+      <em>Resposta</em>
       <strong>${escapeHtml(card.title)}</strong>
     </label>
   `;
