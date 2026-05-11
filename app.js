@@ -1219,17 +1219,15 @@ function renderMesarioScreen() {
     <main class="mesario-page">
       <section class="mesario-dashboard">
         <aside class="mesario-profile-card">
-          <h1>Mesário</h1>
-          <p>${escapeHtml(mesario.email)}</p>
-          <strong>${unit ? escapeHtml(unit.name) : "Sem unidade"}</strong>
+          <button class="mesario-info-button" type="button">
+            <strong>Eleitor(a)</strong>
+            <span>(indique aqui o perfil da pessoa que irá votar)</span>
+          </button>
+          <p>Mesário: ${escapeHtml(mesario.email)}</p>
+          <small>${unit ? escapeHtml(unit.name) : "Sem unidade"}</small>
         </aside>
 
         <section class="vote-release-card">
-          <div>
-            <h2>Liberação de voto</h2>
-            <p>Selecione o tipo de eleitor para gerar um código único e abrir a urna.</p>
-          </div>
-
           ${uiState.sessionNotice ? `<div class="flash flash-success">${escapeHtml(uiState.sessionNotice)}</div>` : ""}
           ${
             liveSession
@@ -1239,14 +1237,18 @@ function renderMesarioScreen() {
 
           <form id="session-form" class="vote-release-form">
             <div class="voter-type-grid">
-              ${VOTER_TYPES.map((type, index) => renderVoterTypeCard(type, index)).join("")}
+              ${[1, 0, 2].map((index) => renderVoterTypeCard(VOTER_TYPES[index], index)).join("")}
             </div>
             <div class="release-actions">
-              <button class="btn btn-primary" type="submit">Acessar Urna Eletrônica</button>
-              ${liveSession ? '<button class="btn btn-secondary" type="button" data-action="resume-session">Retomar votação atual</button>' : ""}
-            </div>
-            <div class="release-note">
-              Ao acessar a urna, o sistema gera um código de liberação, identifica este voto no registro de segurança e impede reutilização após a confirmação.
+              <button class="mesario-action-button" type="submit">
+                <strong>Liberação da urna</strong>
+                <span>(clique aqui para gerar o código para liberar a votação)</span>
+              </button>
+              ${
+                liveSession
+                  ? '<button class="mesario-action-button" type="button" data-action="resume-session"><strong>Abertura da urna</strong><span>(clique aqui para abrir a urna para o(a) eleitor(a) iniciar a votação)</span></button>'
+                  : '<button class="mesario-action-button" type="submit"><strong>Abertura da urna</strong><span>(clique aqui para abrir a urna para o(a) eleitor(a) iniciar a votação)</span></button>'
+              }
             </div>
           </form>
         </section>
@@ -1258,30 +1260,23 @@ function renderMesarioScreen() {
 function renderVoterTypeCard(type, index) {
   const cards = [
     {
-      kicker: "Familiar / Representante",
-      title: "Familiar / Representante Legal",
+      title: "Familiar ou responsável legal do(a) aluno(a)",
       icon: "family",
     },
     {
-      kicker: "Servidor SEMED",
-      title: "Servidor Público da Educação-SEMED",
+      title: "Servidor(a) da unidade de ensino",
       icon: "server",
     },
     {
-      kicker: "EJA + 16 anos",
-      title: "EJA + 16anos",
+      title: "Aluno (EJA com 16 anos ou mais)",
       icon: "book",
     },
   ];
-  const card = cards[index] || { kicker: type, title: type, icon: "book" };
+  const card = cards[index] || { title: type, icon: "book" };
 
   return `
     <label class="voter-type-card">
       <input type="radio" name="voterType" value="${escapeHtml(type)}" ${index === 0 ? "checked" : ""}>
-      <span class="voter-illustration voter-illustration-${card.icon}">
-        <span></span>
-      </span>
-      <small>${escapeHtml(card.kicker)}</small>
       <strong>${escapeHtml(card.title)}</strong>
     </label>
   `;

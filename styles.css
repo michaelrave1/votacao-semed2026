@@ -763,101 +763,129 @@ button {
 }
 
 .mesario-page {
-  width: min(1000px, calc(100vw - 28px));
+  width: min(1160px, calc(100vw - 28px));
   margin: 0 auto;
-  padding: 28px 0 36px;
+  padding: 34px 0 44px;
 }
 
 .mesario-dashboard {
   display: grid;
-  grid-template-columns: 270px 1fr;
-  gap: 14px;
-  align-items: stretch;
+  grid-template-columns: 190px 1fr;
+  gap: 34px;
+  align-items: start;
 }
 
 .mesario-profile-card,
 .vote-release-card {
-  background: rgba(255, 255, 255, 0.98);
-  border: 1px solid #c7d6e4;
-  border-radius: var(--radius);
-  box-shadow: 0 14px 34px rgba(6, 68, 125, 0.1);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .mesario-profile-card {
-  min-height: 395px;
-  padding: 18px;
+  min-height: 0;
+  padding: 84px 0 0;
 }
 
-.mesario-profile-card h1,
-.vote-release-card h2 {
-  margin: 0;
-  color: #12314f;
-  font-size: 1.35rem;
+.mesario-info-button,
+.voter-type-card,
+.mesario-action-button {
+  display: grid;
+  place-items: center;
+  min-height: 116px;
+  width: 100%;
+  padding: 16px 18px;
+  border: 2px solid #c69313;
+  border-radius: 0;
+  background: linear-gradient(180deg, #f8c84a, #e2a813);
+  color: #473405;
+  text-align: center;
+  box-shadow: 0 8px 0 #9a6f05, 0 14px 24px rgba(92, 62, 0, 0.18);
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.mesario-info-button:hover,
+.voter-type-card:hover,
+.mesario-action-button:hover {
+  transform: translateY(-2px);
+  border-color: #8d6402;
+  box-shadow: 0 10px 0 #8d6402, 0 17px 28px rgba(92, 62, 0, 0.2);
+}
+
+.mesario-info-button:active,
+.voter-type-card:active,
+.mesario-action-button:active {
+  transform: translateY(5px);
+  box-shadow: 0 3px 0 #8d6402, 0 8px 18px rgba(92, 62, 0, 0.16);
+}
+
+.mesario-info-button strong,
+.voter-type-card strong,
+.mesario-action-button strong {
+  display: block;
+  max-width: 100%;
+  color: #473405;
+  font-size: clamp(1.12rem, 2.1vw, 1.75rem);
   line-height: 1.2;
   font-weight: 900;
+  overflow-wrap: anywhere;
 }
 
-.mesario-profile-card p,
-.vote-release-card p {
-  margin: 10px 0 0;
-  color: var(--muted);
-  font-size: 0.82rem;
-}
-
-.mesario-profile-card strong {
-  display: inline-flex;
-  margin-top: 18px;
+.mesario-info-button span,
+.mesario-action-button span {
+  display: block;
   max-width: 100%;
-  padding: 5px 9px;
-  border-radius: 999px;
-  background: #e7f1fb;
-  color: var(--brand);
-  font-size: 0.72rem;
+  margin-top: 5px;
+  font-size: clamp(0.82rem, 1.4vw, 1.12rem);
+  line-height: 1.18;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.mesario-profile-card p {
+  margin: 18px 0 0;
+  color: #5e4707;
+  font-size: 0.82rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.mesario-profile-card small {
+  display: block;
+  margin-top: 8px;
+  color: #5e4707;
+  font-size: 0.74rem;
+  font-weight: 800;
   line-height: 1.2;
-  text-transform: uppercase;
   overflow-wrap: anywhere;
 }
 
 .vote-release-card {
-  padding: 18px;
+  padding: 0;
 }
 
 .vote-release-form {
   display: grid;
-  gap: 12px;
-  margin-top: 20px;
+  gap: 34px;
+  margin-top: 0;
 }
 
 .voter-type-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 28px;
 }
 
 .voter-type-card {
-  min-height: 198px;
-  display: grid;
-  grid-template-rows: 132px auto 1fr;
-  justify-items: center;
-  gap: 8px;
-  padding: 10px;
-  border: 2px solid #cbd9e6;
-  border-radius: var(--radius);
-  background: white;
-  color: #12314f;
-  text-align: center;
-  cursor: pointer;
-  transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
-}
-
-.voter-type-card:hover {
-  transform: translateY(-1px);
-  border-color: #8fb0ce;
+  min-height: 154px;
 }
 
 .voter-type-card:has(input:checked) {
-  border-color: var(--brand);
-  box-shadow: 0 0 0 2px rgba(6, 68, 125, 0.1);
+  background: linear-gradient(180deg, #ffe27a, #efbb27);
+  border-color: #6f4f00;
+  box-shadow: 0 8px 0 #6f4f00, 0 0 0 5px rgba(255, 218, 84, 0.32), 0 16px 28px rgba(92, 62, 0, 0.22);
 }
 
 .voter-type-card input {
@@ -866,18 +894,8 @@ button {
   pointer-events: none;
 }
 
-.voter-type-card small {
-  color: #12314f;
-  font-size: 0.76rem;
-  font-weight: 900;
-}
-
 .voter-type-card strong {
-  width: min(170px, 100%);
-  color: #12314f;
-  font-size: 0.96rem;
-  line-height: 1.16;
-  font-weight: 900;
+  width: min(260px, 100%);
 }
 
 .voter-illustration {
@@ -1005,9 +1023,10 @@ button {
 }
 
 .release-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  width: min(330px, 100%);
+  display: grid;
+  gap: 28px;
+  justify-self: center;
 }
 
 .release-note {
@@ -1258,10 +1277,12 @@ th {
 
   .mesario-dashboard {
     grid-template-columns: 1fr;
+    gap: 24px;
   }
 
   .mesario-profile-card {
     min-height: 0;
+    padding: 0;
   }
 
   .results-grid,
@@ -1350,7 +1371,7 @@ th {
 
   .vote-release-card,
   .mesario-profile-card {
-    padding: 16px;
+    padding: 0;
   }
 
   .digit-box {
