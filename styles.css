@@ -765,13 +765,13 @@ button {
 .mesario-page {
   width: min(1160px, calc(100vw - 28px));
   margin: 0 auto;
-  padding: 34px 0 44px;
+  padding: 38px 0 46px;
 }
 
 .mesario-dashboard {
   display: grid;
-  grid-template-columns: 190px 1fr;
-  gap: 34px;
+  grid-template-columns: 218px 1fr;
+  gap: 24px;
   align-items: start;
 }
 
@@ -785,7 +785,7 @@ button {
 
 .mesario-profile-card {
   min-height: 0;
-  padding: 84px 0 0;
+  padding: 0;
 }
 
 .mesario-info-button,
@@ -794,25 +794,29 @@ button {
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 116px;
+  min-height: 154px;
   width: 100%;
-  padding: 16px 18px;
-  border: 2px solid #c69313;
-  border-radius: 0;
-  background: linear-gradient(135deg, #ffe47a 0%, #f8c84a 48%, #d99c06 100%);
-  color: #473405;
+  padding: 22px 20px 18px;
+  border: 1px solid rgba(168, 116, 0, 0.42);
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.36), rgba(255, 255, 255, 0) 38%),
+    linear-gradient(135deg, #ffe58d 0%, #f4bd2c 52%, #d49a10 100%);
+  color: #443003;
   text-align: center;
-  box-shadow: 0 8px 0 #9a6f05, 0 14px 24px rgba(92, 62, 0, 0.18);
+  box-shadow: 0 14px 26px rgba(113, 77, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.62);
   cursor: pointer;
-  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+  overflow: hidden;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease, filter 120ms ease;
 }
 
 .mesario-info-button::after,
 .mesario-action-button::after {
   content: "";
   position: absolute;
-  inset: 10px;
-  border: 2px dashed rgba(71, 52, 5, 0.28);
+  inset: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 6px;
   pointer-events: none;
 }
 
@@ -822,61 +826,76 @@ button {
   position: absolute;
   left: 10px;
   top: 8px;
-  min-width: 34px;
-  padding: 3px 7px;
-  background: rgba(71, 52, 5, 0.14);
-  color: #473405;
-  font-size: 0.78rem;
+  min-width: 36px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(71, 52, 5, 0.13);
+  color: #4d3603;
+  font-size: 0.76rem;
   font-style: normal;
   font-weight: 900;
   line-height: 1.1;
 }
 
 .mesario-info-button {
-  background: linear-gradient(135deg, #fff0a6 0%, #f8c84a 55%, #d99c06 100%);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 40%),
+    linear-gradient(135deg, #fff1ad 0%, #f5c748 52%, #d89d10 100%);
 }
 
 .mesario-info-button strong {
-  font-size: clamp(1rem, 1.7vw, 1.45rem);
+  font-size: clamp(1rem, 1.5vw, 1.34rem);
 }
 
 .mesario-info-button span {
-  font-size: clamp(0.86rem, 1.25vw, 1.05rem);
+  max-width: 170px;
+  font-size: clamp(0.83rem, 1vw, 0.98rem);
 }
 
 .voter-type-grid .voter-type-card:nth-child(1) {
-  background: linear-gradient(135deg, #ffe98f 0%, #f7c43c 52%, #d99b05 100%);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.36), rgba(255, 255, 255, 0) 38%),
+    linear-gradient(135deg, #ffe890 0%, #f5c33f 52%, #d79a08 100%);
 }
 
 .voter-type-grid .voter-type-card:nth-child(2) {
-  background: linear-gradient(135deg, #fff1ad 0%, #f9cf55 52%, #dfa60f 100%);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 40%),
+    linear-gradient(135deg, #fff1ad 0%, #f7cb51 52%, #dfa411 100%);
 }
 
 .voter-type-grid .voter-type-card:nth-child(3) {
-  background: linear-gradient(135deg, #ffe37d 0%, #efb824 52%, #c98d00 100%);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0) 38%),
+    linear-gradient(135deg, #ffe27d 0%, #efb728 52%, #ca8e04 100%);
 }
 
 .release-actions .mesario-action-button:first-child {
-  background: linear-gradient(135deg, #ffe98f 0%, #efbd28 54%, #cf9303 100%);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 38%),
+    linear-gradient(135deg, #ffe890 0%, #efbd28 54%, #cf9303 100%);
 }
 
 .release-actions .mesario-action-button:last-child {
-  background: linear-gradient(135deg, #ffe070 0%, #e9ad14 54%, #bd8200 100%);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 38%),
+    linear-gradient(135deg, #ffe070 0%, #e9ad14 54%, #bd8200 100%);
 }
 
 .mesario-info-button:hover,
 .voter-type-card:hover,
 .mesario-action-button:hover {
   transform: translateY(-2px);
-  border-color: #8d6402;
-  box-shadow: 0 10px 0 #8d6402, 0 17px 28px rgba(92, 62, 0, 0.2);
+  border-color: rgba(112, 78, 0, 0.58);
+  filter: saturate(1.04);
+  box-shadow: 0 18px 32px rgba(113, 77, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .mesario-info-button:active,
 .voter-type-card:active,
 .mesario-action-button:active {
-  transform: translateY(5px);
-  box-shadow: 0 3px 0 #8d6402, 0 8px 18px rgba(92, 62, 0, 0.16);
+  transform: translateY(1px);
+  box-shadow: 0 10px 20px rgba(113, 77, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 .mesario-info-button strong,
@@ -884,7 +903,7 @@ button {
 .mesario-action-button strong {
   display: block;
   max-width: 100%;
-  color: #473405;
+  color: #443003;
   font-size: clamp(1.12rem, 2.1vw, 1.75rem);
   line-height: 1.2;
   font-weight: 900;
@@ -903,7 +922,7 @@ button {
 }
 
 .mesario-profile-card p {
-  margin: 18px 0 0;
+  margin: 20px 0 0;
   color: #5e4707;
   font-size: 0.82rem;
   line-height: 1.25;
@@ -933,7 +952,7 @@ button {
 .voter-type-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 28px;
+  gap: 24px;
 }
 
 .voter-type-card {
@@ -941,9 +960,11 @@ button {
 }
 
 .voter-type-card:has(input:checked) {
-  background: linear-gradient(135deg, #efffe9 0%, #c9f3bd 52%, #91dc83 100%);
-  border-color: #419333;
-  box-shadow: 0 8px 0 #337728, 0 0 0 6px rgba(104, 190, 91, 0.24), 0 16px 28px rgba(55, 113, 40, 0.18);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.48), rgba(255, 255, 255, 0) 42%),
+    linear-gradient(135deg, #f4fff0 0%, #c8f0bd 52%, #8fd77f 100%);
+  border-color: #429635;
+  box-shadow: 0 0 0 4px rgba(91, 178, 76, 0.18), 0 18px 30px rgba(55, 113, 40, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.72);
   color: #183f15;
 }
 
