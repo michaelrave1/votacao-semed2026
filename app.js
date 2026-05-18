@@ -1380,6 +1380,54 @@ function renderMesarioScreen() {
   const liveSession = liveAssignment
     ? appState.votingSessions.find((session) => session.id === liveAssignment.sessionId) || null
     : null;
+
+  return `
+    <main class="mesario-page">
+      <section class="mesario-dashboard">
+        <div class="mesario-context">
+          <strong>Mesário: ${escapeHtml(mesario.email)}</strong>
+          <span>${unit ? escapeHtml(unit.name) : "Sem unidade"}</span>
+        </div>
+        ${uiState.sessionNotice ? `<div class="flash flash-success">${escapeHtml(uiState.sessionNotice)}</div>` : ""}
+        ${
+          liveSession
+            ? `<div class="flash flash-neutral">Votação em andamento: <strong>${escapeHtml(liveSession.token)}</strong></div>`
+            : ""
+        }
+
+        <form id="session-form" class="vote-release-form">
+          <section class="mesario-flow-row mesario-flow-row-profile">
+            <div class="mesario-step-card mesario-step-card-primary">
+              <strong>1. Escolha o perfil da pessoa que irá votar</strong>
+            </div>
+            <div class="voter-type-grid">
+              ${[1, 0, 2].map((index) => renderVoterTypeCard(VOTER_TYPES[index], index)).join("")}
+            </div>
+          </section>
+
+          <section class="mesario-flow-row mesario-flow-row-release">
+            <div class="mesario-step-card">
+              <strong>2. Gere o código para liberar a votação</strong>
+            </div>
+            <button class="mesario-action-button mesario-action-button-release" type="submit">
+              <strong>Código de liberação da votação</strong>
+            </button>
+          </section>
+
+          <section class="mesario-flow-row mesario-flow-row-open">
+            <div class="mesario-step-card">
+              <strong>3. Abra a urna e entregue o tablet para o(a) eleitor(a)</strong>
+            </div>
+            ${
+              liveSession
+                ? '<button class="mesario-action-button mesario-action-button-open" type="button" data-action="resume-session"><strong>Abertura da urna</strong></button>'
+                : '<button class="mesario-action-button mesario-action-button-open" type="submit"><strong>Abertura da urna</strong></button>'
+            }
+          </section>
+        </form>
+      </section>
+    </main>
+  `;
   return `
     <main class="mesario-page">
       <section class="mesario-dashboard">
@@ -1444,7 +1492,6 @@ function renderVoterTypeCard(type, index) {
   return `
     <label class="voter-type-card">
       <input type="radio" name="voterType" value="${escapeHtml(type)}" ${index === 0 ? "checked" : ""}>
-      <em>Resposta</em>
       <strong>${escapeHtml(card.title)}</strong>
     </label>
   `;
