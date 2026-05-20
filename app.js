@@ -253,6 +253,21 @@ function getCandidateTypology(candidate) {
   return normalizeTypology(unit?.typology);
 }
 
+function getVoterWeight(voterType) {
+  const normalized = String(voterType || "").toLowerCase();
+  return normalized.includes("servidor") ? 2 : 1;
+}
+
+function getVoteWeight(vote) {
+  const storedWeight = Number(vote?.voteWeight || 0);
+  return storedWeight > 0 ? storedWeight : getVoterWeight(vote?.voterType);
+}
+
+function isValidVoteType(voteType) {
+  const normalized = String(voteType || "").toLowerCase();
+  return normalized === "válido" || (normalized.startsWith("v") && normalized.includes("lido"));
+}
+
 function createSeedState() {
   const units = UNIT_NAMES.map((name, index) => ({
     id: `unit-${String(index + 1).padStart(2, "0")}-${slugify(name).slice(0, 24)}`,
@@ -1058,6 +1073,7 @@ async function confirmVote() {
         candidateNumber,
         candidateName,
         voteType,
+        voteWeight: getVoterWeight(latestSession.voterType),
         voterType: latestSession.voterType,
         unitId: latestSession.unitId,
         unitName: latestSession.unitName,
@@ -2127,9 +2143,10 @@ function renderResultsTab() {
     return unitMatch && typeMatch;
   });
 
-  const validVotes = filteredVotes.filter((vote) => vote.voteType === "Válido");
+  const validVotes = filteredVotes.filter((vote) => isValidVoteType(vote.voteType));
   const blankVotes = filteredVotes.filter((vote) => vote.voteType === "Em Branco").length;
   const nullVotes = filteredVotes.filter((vote) => vote.voteType === "Nulo").length;
+  const weightedValidVotes = validVotes.reduce((sum, vote) => sum + getVoteWeight(vote), 0);
 
   const totals = new Map();
   validVotes.forEach((vote) => {
@@ -2140,9 +2157,12 @@ function renderResultsTab() {
         candidateNumber: vote.candidateNumber,
         candidateName: vote.candidateName,
         count: 0,
+        rawCount: 0,
       });
     }
-    totals.get(key).count += 1;
+    const item = totals.get(key);
+    item.count += getVoteWeight(vote);
+    item.rawCount += 1;
   });
 
   const sortedTotals = [...totals.values()].sort(
@@ -2159,6 +2179,7 @@ function renderResultsTab() {
         unitName: vote.unitName || getUnitById(vote.unitId)?.name || "-",
         total: 0,
         valid: 0,
+        weightedValid: 0,
         blank: 0,
         nullVotes: 0,
       });
@@ -2166,8 +2187,9 @@ function renderResultsTab() {
 
     const item = unitTotals.get(key);
     item.total += 1;
-    if (vote.voteType === "Válido" || vote.voteType === "VÃ¡lido") {
+    if (isValidVoteType(vote.voteType)) {
       item.valid += 1;
+      item.weightedValid += getVoteWeight(vote);
     } else if (vote.voteType === "Em Branco") {
       item.blank += 1;
     } else if (vote.voteType === "Nulo") {
@@ -2209,6 +2231,7 @@ function renderResultsTab() {
         <section class="results-grid">
           ${summaryCard("Votos filtrados", filteredVotes.length, "Total de registros dentro dos filtros atuais.")}
           ${summaryCard("Válidos", validVotes.length, "Votos atribuídos a chapas da unidade do mesário.")}
+          ${summaryCard("Peso válido", weightedValidVotes, "Soma ponderada: familiares e EJA valem 1; servidores valem 2.")}
           ${summaryCard("Em branco", blankVotes, "Registros confirmados sem número digitado.")}
           ${summaryCard("Nulos", nullVotes, "Números sem correspondência nas chapas da escola.")}
         </section>
@@ -2217,7 +2240,7 @@ function renderResultsTab() {
       <article class="table-card stack">
         <div>
           <h2 class="section-title">Gráfico por unidade e chapa</h2>
-          <p class="subtle">Votos válidos agrupados por unidade de ensino e chapa, conforme os filtros selecionados.</p>
+          <p class="subtle">Total ponderado por chapa, respeitando os filtros de unidade escolar e perfil.</p>
         </div>
         ${
           sortedTotals.length
@@ -2231,7 +2254,7 @@ function renderResultsTab() {
                       <article class="results-chart-row">
                         <div class="results-chart-copy">
                           <strong>${escapeHtml(unitName)}</strong>
-                          <span>${escapeHtml(item.candidateNumber)} - ${escapeHtml(item.candidateName || "-")}</span>
+                          <span>${escapeHtml(item.candidateNumber)} - ${escapeHtml(item.candidateName || "-")} | ${item.rawCount} voto(s)</span>
                         </div>
                         <div class="results-chart-track" aria-label="${escapeHtml(`${unitName} ${item.candidateNumber}`)}">
                           <div class="results-chart-bar" style="width: ${width.toFixed(2)}%"></div>
@@ -2262,6 +2285,7 @@ function renderResultsTab() {
                       <th>Unidade</th>
                       <th>Total</th>
                       <th>Válidos</th>
+                      <th>Peso válido</th>
                       <th>Em branco</th>
                       <th>Nulos</th>
                     </tr>
@@ -2274,6 +2298,7 @@ function renderResultsTab() {
                             <td>${escapeHtml(item.unitName)}</td>
                             <td><strong>${item.total}</strong></td>
                             <td>${item.valid}</td>
+                            <td>${item.weightedValid}</td>
                             <td>${item.blank}</td>
                             <td>${item.nullVotes}</td>
                           </tr>
@@ -2291,7 +2316,7 @@ function renderResultsTab() {
       <article class="table-card stack">
         <div>
           <h2 class="section-title">Total por chapa</h2>
-          <p class="subtle">Quantidade de votos válidos por unidade de ensino e chapa.</p>
+          <p class="subtle">Total de votos ponderados por chapa conforme os filtros selecionados.</p>
         </div>
         ${
           sortedTotals.length
@@ -2303,7 +2328,8 @@ function renderResultsTab() {
                       <th>Unidade</th>
                       <th>Número</th>
                       <th>Chapa</th>
-                      <th>Total</th>
+                      <th>Votos</th>
+                      <th>Peso total</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2314,6 +2340,7 @@ function renderResultsTab() {
                             <td>${escapeHtml(getUnitById(item.unitId)?.name || "-")}</td>
                             <td><strong>${escapeHtml(item.candidateNumber)}</strong></td>
                             <td>${escapeHtml(item.candidateName || "-")}</td>
+                            <td>${item.rawCount}</td>
                             <td><strong>${item.count}</strong></td>
                           </tr>
                         `,
@@ -2346,6 +2373,7 @@ function renderResultsTab() {
                       <th>Chapa</th>
                       <th>Unidade</th>
                       <th>Perfil do votante</th>
+                      <th>Peso</th>
                       <th>Mesário</th>
                     </tr>
                   </thead>
@@ -2361,6 +2389,7 @@ function renderResultsTab() {
                             <td>${escapeHtml(vote.candidateName || "-")}</td>
                             <td>${escapeHtml(vote.unitName)}</td>
                             <td>${escapeHtml(vote.voterType)}</td>
+                            <td>${getVoteWeight(vote)}</td>
                             <td>${escapeHtml(vote.mesarioName)}<br><span class="subtle">${escapeHtml(vote.mesarioEmail)}</span></td>
                           </tr>
                         `,
