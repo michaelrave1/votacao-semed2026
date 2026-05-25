@@ -186,6 +186,9 @@ const uiState = {
   loginEmail: "",
   adminTab: "access",
   activeAccessEditId: null,
+  accessEditorOpen: false,
+  activeUnitEditId: null,
+  unitEditorOpen: false,
   activeCandidateId: null,
   accessNotice: "",
   candidateNotice: "",
@@ -489,6 +492,9 @@ function handleClick(event) {
     uiState.adminTab = value;
     uiState.accessNotice = "";
     uiState.candidateNotice = "";
+    uiState.accessEditorOpen = false;
+    uiState.unitEditorOpen = false;
+    uiState.candidateEditorOpen = false;
     renderApp();
   } else if (action === "digit") {
     pushDigit(value);
@@ -505,15 +511,33 @@ function handleClick(event) {
     resumeCurrentSession();
   } else if (action === "edit-access") {
     uiState.activeAccessEditId = value;
+    uiState.accessEditorOpen = true;
     uiState.adminTab = "access";
     uiState.accessNotice = "";
     renderApp();
   } else if (action === "new-access") {
     uiState.activeAccessEditId = null;
+    uiState.accessEditorOpen = true;
+    uiState.accessNotice = "";
+    renderApp();
+  } else if (action === "close-access-editor") {
+    uiState.activeAccessEditId = null;
+    uiState.accessEditorOpen = false;
     uiState.accessNotice = "";
     renderApp();
   } else if (action === "toggle-access") {
     toggleAccessActive(value);
+  } else if (action === "edit-unit") {
+    uiState.activeUnitEditId = value;
+    uiState.unitEditorOpen = true;
+    uiState.adminTab = "units";
+    uiState.accessNotice = "";
+    renderApp();
+  } else if (action === "close-unit-editor") {
+    uiState.activeUnitEditId = null;
+    uiState.unitEditorOpen = false;
+    uiState.accessNotice = "";
+    renderApp();
   } else if (action === "edit-candidate") {
     uiState.activeCandidateId = value;
     uiState.tempCandidatePhoto = "";
@@ -547,6 +571,7 @@ function handleClick(event) {
   } else if (action === "reset-form") {
     if (value === "access") {
       uiState.activeAccessEditId = null;
+      uiState.accessEditorOpen = false;
       uiState.accessNotice = "";
     }
     if (value === "candidate") {
@@ -896,6 +921,7 @@ async function submitAccessForm(formData) {
     if (result.status === "missing") {
       uiState.accessNotice = "O acesso em ediÃ§Ã£o nÃ£o foi encontrado.";
       uiState.activeAccessEditId = null;
+      uiState.accessEditorOpen = false;
       renderApp();
       return;
     }
@@ -904,6 +930,7 @@ async function submitAccessForm(formData) {
       ? "Acesso atualizado com sucesso."
       : "Acesso criado com sucesso.";
     uiState.activeAccessEditId = null;
+    uiState.accessEditorOpen = false;
     renderApp();
   } catch (error) {
     uiState.accessNotice = "Nao foi possivel salvar o acesso no Firestore.";
@@ -913,13 +940,18 @@ async function submitAccessForm(formData) {
 }
 
 async function submitUnitsForm(formData) {
+  const editingUnitId = String(formData.get("unitId") || "");
   try {
     await runElectionStateTransaction((draftState) => {
-      draftState.units.forEach((unit) => {
-        const typology = normalizeTypology(formData.get(`typology:${unit.id}`));
-        unit.typology = typology;
-        unit.officeTitle = candidateRoleLabels(typology).join(", ").toUpperCase();
-      });
+      const unitsToUpdate = editingUnitId
+        ? draftState.units.filter((unit) => unit.id === editingUnitId)
+        : draftState.units;
+
+      unitsToUpdate.forEach((unit) => {
+          const typology = normalizeTypology(formData.get("typology") || formData.get(`typology:${unit.id}`));
+          unit.typology = typology;
+          unit.officeTitle = candidateRoleLabels(typology).join(", ").toUpperCase();
+        });
 
       draftState.candidates.forEach((candidate) => {
         const unit = draftState.units.find((item) => item.id === candidate.unitId) || null;
@@ -934,6 +966,8 @@ async function submitUnitsForm(formData) {
     });
 
     uiState.accessNotice = "Tipologias das unidades atualizadas com sucesso.";
+    uiState.activeUnitEditId = null;
+    uiState.unitEditorOpen = false;
     renderApp();
   } catch (error) {
     uiState.accessNotice = "Nao foi possivel atualizar as tipologias das unidades.";
@@ -1392,6 +1426,10 @@ function getCurrentAccess() {
 
 function getActiveAccessEdit() {
   return appState.accessAccounts.find((account) => account.id === uiState.activeAccessEditId) || null;
+}
+
+function getActiveUnitEdit() {
+  return appState.units.find((unit) => unit.id === uiState.activeUnitEditId) || null;
 }
 
 function getActiveCandidate() {
@@ -1875,9 +1913,13 @@ function renderAccessTab() {
   const editing = getActiveAccessEdit();
   const accounts = [...appState.accessAccounts].sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
 
+  if (uiState.accessEditorOpen) {
+    return renderAccessEditorPage(editing);
+  }
+
   return `
-    <section class="admin-grid">
-      <article class="form-card stack">
+    <section class="candidate-list-page">
+      <article class="form-card stack" hidden>
         <div>
           <h2 class="section-title">${editing ? "Editar acesso" : "Novo acesso"}</h2>
           <p class="subtle">Cadastre o administrador ou os mesários vinculados às unidades escolares.</p>
@@ -1977,8 +2019,73 @@ function renderAccessTab() {
   `;
 }
 
+function renderAccessEditorPage(editing) {
+  return `
+    <section class="candidate-editor-page">
+      <article class="form-card stack">
+        <div class="status-strip">
+          <span>
+            <strong>${editing ? "Editar acesso" : "Novo acesso"}</strong><br>
+            <span class="subtle">Cadastre o administrador ou os mesários vinculados às unidades escolares.</span>
+          </span>
+          <button class="btn btn-neutral" type="button" data-action="close-access-editor">Voltar para acessos</button>
+        </div>
+        ${uiState.accessNotice ? `<div class="flash flash-neutral">${escapeHtml(uiState.accessNotice)}</div>` : ""}
+        <form id="access-form" class="field-grid">
+          <div class="field field-light">
+            <label for="access-name">Nome do acesso</label>
+            <input id="access-name" name="name" value="${escapeHtml(editing ? editing.name : "")}" placeholder="Ex.: Mesário 01" required>
+          </div>
+          <div class="field field-light">
+            <label for="access-email">E-mail</label>
+            <input id="access-email" name="email" type="email" value="${escapeHtml(editing ? editing.email : "")}" required>
+          </div>
+          <div class="field field-light">
+            <label for="access-password">Senha</label>
+            <input id="access-password" name="password" value="${escapeHtml(editing ? editing.password : "")}" required>
+          </div>
+          <div class="split-fields">
+            <div class="field field-light">
+              <label for="access-kind">Tipo de acesso</label>
+              <select id="access-kind" name="accessKind">
+                ${optionTag("ADMINISTRADOR", editing ? editing.accessKind : "MESARIO", "Administrador")}
+                ${optionTag("MESARIO", editing ? editing.accessKind : "MESARIO", "Mesário")}
+              </select>
+            </div>
+            <div class="field field-light">
+              <label for="access-unit">Unidade escolar</label>
+              <select id="access-unit" name="unitId">
+                <option value="">Selecione</option>
+                ${appState.units.map((unit) => optionTag(unit.id, editing ? editing.unitId : "", unit.name)).join("")}
+              </select>
+            </div>
+          </div>
+          <label class="status-strip">
+            <span>
+              <strong>Acesso ativo</strong><br>
+              <span class="subtle">Contas inativas não conseguem entrar no sistema.</span>
+            </span>
+            <input type="checkbox" name="active" ${editing ? (editing.active ? "checked" : "") : "checked"}>
+          </label>
+          <div class="actions-row">
+            <button class="btn btn-primary" type="submit">${editing ? "Salvar acesso" : "Criar acesso"}</button>
+            <button class="btn btn-neutral" type="button" data-action="close-access-editor">Cancelar</button>
+          </div>
+        </form>
+      </article>
+    </section>
+  `;
+}
+
 function renderUnitsTab() {
   const units = [...appState.units].sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
+  const editing = getActiveUnitEdit();
+
+  if (uiState.unitEditorOpen) {
+    return renderUnitEditorPage(editing);
+  }
+
+  return renderUnitListPage(units);
 
   return `
     <section class="table-card stack">
@@ -2023,6 +2130,96 @@ function renderUnitsTab() {
           <button class="btn btn-primary" type="submit">Salvar tipologias</button>
         </div>
       </form>
+    </section>
+  `;
+}
+
+function renderUnitListPage(units) {
+  return `
+    <section class="candidate-list-page">
+      <article class="table-card stack">
+        <div class="status-strip">
+          <span>
+            <strong>Perfil das unidades</strong><br>
+            <span class="subtle">A tipologia da unidade define a composição das chapas cadastradas para ela.</span>
+          </span>
+        </div>
+        ${uiState.accessNotice ? `<div class="flash flash-neutral">${escapeHtml(uiState.accessNotice)}</div>` : ""}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Unidade escolar</th>
+                <th>Tipologia</th>
+                <th>Composição da chapa</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${units
+                .map((unit) => {
+                  const typology = getTypology(unit.typology);
+                  return `
+                    <tr>
+                      <td><strong>${escapeHtml(unit.name)}</strong></td>
+                      <td>${escapeHtml(typology.label)}</td>
+                      <td>${escapeHtml(typology.roles.join(", "))}</td>
+                      <td>
+                        <button class="btn btn-neutral" type="button" data-action="edit-unit" data-value="${escapeHtml(unit.id)}">Editar</button>
+                      </td>
+                    </tr>
+                  `;
+                })
+                .join("")}
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  `;
+}
+
+function renderUnitEditorPage(unit) {
+  if (!unit) {
+    return `
+      <section class="candidate-editor-page">
+        <article class="form-card stack">
+          <div class="flash flash-neutral">Unidade não encontrada.</div>
+          <button class="btn btn-neutral" type="button" data-action="close-unit-editor">Voltar para unidades</button>
+        </article>
+      </section>
+    `;
+  }
+
+  const typology = getTypology(unit.typology);
+  return `
+    <section class="candidate-editor-page">
+      <article class="form-card stack">
+        <div class="status-strip">
+          <span>
+            <strong>Editar unidade</strong><br>
+            <span class="subtle">${escapeHtml(unit.name)}</span>
+          </span>
+          <button class="btn btn-neutral" type="button" data-action="close-unit-editor">Voltar para unidades</button>
+        </div>
+        ${uiState.accessNotice ? `<div class="flash flash-neutral">${escapeHtml(uiState.accessNotice)}</div>` : ""}
+        <form id="units-form" class="field-grid">
+          <input type="hidden" name="unitId" value="${escapeHtml(unit.id)}">
+          <div class="field field-light">
+            <label for="unit-typology">Tipologia da unidade</label>
+            <select id="unit-typology" name="typology">
+              ${UNIT_TYPOLOGIES.map((item) => optionTag(item.value, typology.value, `${item.label} - ${item.roles.join(", ")}`)).join("")}
+            </select>
+          </div>
+          <div class="release-note">
+            Composição atual: <strong>${escapeHtml(typology.roles.join(", "))}</strong>
+          </div>
+          <div class="actions-row">
+            <button class="btn btn-primary" type="submit">Salvar unidade</button>
+            <button class="btn btn-neutral" type="button" data-action="close-unit-editor">Cancelar</button>
+          </div>
+        </form>
+      </article>
     </section>
   `;
 }
