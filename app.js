@@ -647,7 +647,7 @@ function handleSubmit(event) {
 
   if (form.id === "candidate-form") {
     event.preventDefault();
-    submitCandidateForm(new FormData(form));
+    submitCandidateForm(form);
   }
 }
 
@@ -685,7 +685,6 @@ function handleChange(event) {
     const reader = new FileReader();
     reader.onload = () => {
       uiState.tempCandidatePhoto = typeof reader.result === "string" ? reader.result : "";
-      renderApp();
     };
     reader.readAsDataURL(target.files[0]);
   }
@@ -698,7 +697,6 @@ function handleChange(event) {
         ...uiState.tempCandidateMemberPhotos,
         [photoIndex]: typeof reader.result === "string" ? reader.result : "",
       };
-      renderApp();
     };
     reader.readAsDataURL(target.files[0]);
   }
@@ -1001,24 +999,52 @@ async function submitUnitsForm(formData) {
   }
 }
 
-async function submitCandidateForm(formData) {
+function fileToDataUrl(file) {
+  return new Promise((resolve) => {
+    if (!file) {
+      resolve("");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => resolve("");
+    reader.readAsDataURL(file);
+  });
+}
+
+async function submitCandidateForm(form) {
+  const submitButton = form.querySelector('button[type="submit"]');
+  if (submitButton instanceof HTMLButtonElement) {
+    submitButton.disabled = true;
+  }
+
+  const formData = new FormData(form);
   const editing = getActiveCandidate();
+  const mainPhotoInput = form.querySelector("#candidate-photo");
+  const submittedPhoto = mainPhotoInput instanceof HTMLInputElement && mainPhotoInput.files && mainPhotoInput.files[0]
+    ? await fileToDataUrl(mainPhotoInput.files[0])
+    : "";
   const payload = {
     number: String(formData.get("number") || "").trim(),
     name: String(formData.get("name") || "").trim(),
     unitId: String(formData.get("unitId") || ""),
     typology: normalizeTypology(getUnitById(String(formData.get("unitId") || ""))?.typology),
-    photoData: uiState.tempCandidatePhoto || (editing ? editing.photoData : ""),
+    photoData: submittedPhoto || uiState.tempCandidatePhoto || (editing ? editing.photoData : ""),
   };
   const previousMembers = getCandidateMembers(editing);
-  const members = candidateRoleLabels(payload.typology).map((role, index) => {
+  const members = await Promise.all(candidateRoleLabels(payload.typology).map(async (role, index) => {
     const previous = previousMembers[index] || {};
+    const memberPhotoInput = form.querySelector(`[data-member-photo-index="${index}"]`);
+    const submittedMemberPhoto = memberPhotoInput instanceof HTMLInputElement && memberPhotoInput.files && memberPhotoInput.files[0]
+      ? await fileToDataUrl(memberPhotoInput.files[0])
+      : "";
     return {
       role,
       name: String(formData.get(`memberName${index}`) || "").trim(),
-      photoData: uiState.tempCandidateMemberPhotos[index] || previous.photoData || "",
+      photoData: submittedMemberPhoto || uiState.tempCandidateMemberPhotos[index] || previous.photoData || "",
     };
-  });
+  }));
   const primaryMember = members[0] || null;
 
   if (!/^\d{3}$/.test(payload.number)) {
@@ -1134,6 +1160,10 @@ async function submitCandidateForm(formData) {
     uiState.candidateNotice = buildFirestoreErrorMessage("Nao foi possivel salvar a chapa no Firestore.", error);
     console.error(error);
     renderApp();
+  } finally {
+    if (submitButton instanceof HTMLButtonElement) {
+      submitButton.disabled = false;
+    }
   }
 }
 
