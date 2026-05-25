@@ -264,7 +264,7 @@ function buildFirestoreErrorMessage(message, error) {
   const detail = error && typeof error === "object" && "message" in error ? String(error.message) : "";
 
   if (code === "permission-denied") {
-    return `${message} Verifique as regras do Firestore no projeto Firebase e permita leitura/escrita para a colecao urnaState.`;
+    return `${message} Verifique as regras do Firestore no projeto Firebase e permita leitura/escrita para os documentos urnaState/chapas e urnaState/votacao.`;
   }
 
   if (code === "failed-precondition" || detail.toLowerCase().includes("database")) {

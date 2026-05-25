@@ -24,14 +24,19 @@ const firebaseConfig = {
 };
 
 const STATE_COLLECTION = "urnaState";
-const STATE_DOCUMENT_ID = "current";
-const stateRef = doc(getFirestore(initializeApp(firebaseConfig)), STATE_COLLECTION, STATE_DOCUMENT_ID);
+const LEGACY_DOCUMENT_ID = "current";
+const REGISTRY_DOCUMENT_ID = "chapas";
+const VOTING_DOCUMENT_ID = "votacao";
+const firestore = getFirestore(initializeApp(firebaseConfig));
+const legacyStateRef = doc(firestore, STATE_COLLECTION, LEGACY_DOCUMENT_ID);
+const registryStateRef = doc(firestore, STATE_COLLECTION, REGISTRY_DOCUMENT_ID);
+const votingStateRef = doc(firestore, STATE_COLLECTION, VOTING_DOCUMENT_ID);
 
 export const firebaseServices = {
-  app: stateRef.firestore.app,
-  auth: getAuth(stateRef.firestore.app),
-  firestore: stateRef.firestore,
-  database: getDatabase(stateRef.firestore.app),
+  app: firestore.app,
+  auth: getAuth(firestore.app),
+  firestore,
+  database: getDatabase(firestore.app),
   analytics: null,
 };
 
@@ -82,49 +87,110 @@ function normalizeElectionState(rawState) {
   };
 }
 
+function splitElectionState(state) {
+  const normalized = normalizeElectionState(state);
+  return {
+    registry: {
+      settings: normalized.settings,
+      units: normalized.units,
+      accessAccounts: normalized.accessAccounts,
+      candidates: normalized.candidates,
+    },
+    voting: {
+      boothAssignments: normalized.boothAssignments,
+      votingSessions: normalized.votingSessions,
+      votes: normalized.votes,
+    },
+  };
+}
+
+function mergeElectionState(registryState, votingState) {
+  const emptyState = createEmptyElectionState();
+  return normalizeElectionState({
+    ...emptyState,
+    ...(registryState && typeof registryState === "object" ? registryState : {}),
+    ...(votingState && typeof votingState === "object" ? votingState : {}),
+  });
+}
+
 function cloneElectionState(state) {
   return JSON.parse(JSON.stringify(state));
 }
 
-function stampElectionState(state) {
+function stampRegistryState(state) {
+  const { registry } = splitElectionState(state);
   return {
-    ...normalizeElectionState(state),
+    ...registry,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function stampVotingState(state) {
+  const { voting } = splitElectionState(state);
+  return {
+    ...voting,
     updatedAt: new Date().toISOString(),
   };
 }
 
 export async function ensureElectionSeed(seedState) {
   await runTransaction(firebaseServices.firestore, async (transaction) => {
-    const snapshot = await transaction.get(stateRef);
-    if (snapshot.exists()) {
+    const registrySnapshot = await transaction.get(registryStateRef);
+    const votingSnapshot = await transaction.get(votingStateRef);
+    if (registrySnapshot.exists() && votingSnapshot.exists()) {
       return;
     }
 
-    transaction.set(stateRef, {
-      ...stampElectionState(seedState),
-      seededAt: new Date().toISOString(),
-    });
+    const legacySnapshot = await transaction.get(legacyStateRef);
+    const sourceState = legacySnapshot.exists()
+      ? normalizeElectionState(legacySnapshot.data())
+      : normalizeElectionState(seedState);
+
+    if (!registrySnapshot.exists()) {
+      transaction.set(registryStateRef, {
+        ...stampRegistryState(sourceState),
+        seededAt: new Date().toISOString(),
+      });
+    }
+
+    if (!votingSnapshot.exists()) {
+      transaction.set(votingStateRef, {
+        ...stampVotingState(sourceState),
+        seededAt: new Date().toISOString(),
+      });
+    }
   });
 }
 
 export function subscribeToElectionState({ onChange, onReady, onError }) {
   let didSignalReady = false;
+  let latestRegistryState = null;
+  let latestVotingState = null;
+  let hasRegistrySnapshot = false;
+  let hasVotingSnapshot = false;
 
-  return onSnapshot(
-    stateRef,
-    (snapshot) => {
-      const nextState = snapshot.exists()
-        ? normalizeElectionState(snapshot.data())
-        : createEmptyElectionState();
+  function emitIfReady() {
+    if (!hasRegistrySnapshot || !hasVotingSnapshot) {
+      return;
+    }
 
-      onChange(nextState);
+    const nextState = mergeElectionState(latestRegistryState, latestVotingState);
+    onChange(nextState);
 
-      if (!didSignalReady) {
-        didSignalReady = true;
-        if (typeof onReady === "function") {
-          onReady(nextState);
-        }
+    if (!didSignalReady) {
+      didSignalReady = true;
+      if (typeof onReady === "function") {
+        onReady(nextState);
       }
+    }
+  }
+
+  const unsubscribeRegistry = onSnapshot(
+    registryStateRef,
+    (snapshot) => {
+      latestRegistryState = snapshot.exists() ? snapshot.data() : {};
+      hasRegistrySnapshot = true;
+      emitIfReady();
     },
     (error) => {
       if (typeof onError === "function") {
@@ -132,22 +198,47 @@ export function subscribeToElectionState({ onChange, onReady, onError }) {
       }
     },
   );
+
+  const unsubscribeVoting = onSnapshot(
+    votingStateRef,
+    (snapshot) => {
+      latestVotingState = snapshot.exists() ? snapshot.data() : {};
+      hasVotingSnapshot = true;
+      emitIfReady();
+    },
+    (error) => {
+      if (typeof onError === "function") {
+        onError(error);
+      }
+    },
+  );
+
+  return () => {
+    unsubscribeRegistry();
+    unsubscribeVoting();
+  };
 }
 
 export async function replaceElectionState(nextState) {
-  await setDoc(stateRef, stampElectionState(nextState));
+  await Promise.all([
+    setDoc(registryStateRef, stampRegistryState(nextState)),
+    setDoc(votingStateRef, stampVotingState(nextState)),
+  ]);
 }
 
 export async function runElectionStateTransaction(mutator) {
   return runTransaction(firebaseServices.firestore, async (transaction) => {
-    const snapshot = await transaction.get(stateRef);
-    const currentState = snapshot.exists()
-      ? normalizeElectionState(snapshot.data())
-      : createEmptyElectionState();
+    const registrySnapshot = await transaction.get(registryStateRef);
+    const votingSnapshot = await transaction.get(votingStateRef);
+    const currentState = mergeElectionState(
+      registrySnapshot.exists() ? registrySnapshot.data() : {},
+      votingSnapshot.exists() ? votingSnapshot.data() : {},
+    );
     const draftState = cloneElectionState(currentState);
     const result = await mutator(draftState, currentState);
 
-    transaction.set(stateRef, stampElectionState(draftState));
+    transaction.set(registryStateRef, stampRegistryState(draftState));
+    transaction.set(votingStateRef, stampVotingState(draftState));
     return result;
   });
 }
