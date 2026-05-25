@@ -1131,7 +1131,7 @@ async function submitCandidateForm(formData) {
     uiState.candidateEditorOpen = false;
     renderApp();
   } catch (error) {
-    uiState.candidateNotice = "Nao foi possivel salvar a chapa no Firestore.";
+    uiState.candidateNotice = buildFirestoreErrorMessage("Nao foi possivel salvar a chapa no Firestore.", error);
     console.error(error);
     renderApp();
   }
@@ -2386,7 +2386,7 @@ function renderCandidateListPage(candidates) {
 function renderCandidatesTab() {
   const editing = getActiveCandidate();
   const currentPhoto = uiState.tempCandidatePhoto || (editing ? editing.photoData : "");
-  const selectedUnitId = editing ? editing.unitId : uiState.candidateDraftUnitId;
+  const selectedUnitId = uiState.candidateDraftUnitId || (editing ? editing.unitId : "");
   const selectedUnit = selectedUnitId ? getUnitById(selectedUnitId) : appState.units[0];
   const selectedTypology = uiState.candidateDraftTypology || (editing ? getCandidateTypology(editing) : normalizeTypology(selectedUnit?.typology));
   const candidates = [...appState.candidates].sort((left, right) => {
