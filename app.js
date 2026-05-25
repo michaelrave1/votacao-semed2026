@@ -199,7 +199,6 @@ const uiState = {
   ballotBlank: false,
   ballotAlert: "",
   tempCandidatePhoto: "",
-  tempCandidateMemberPhotos: {},
   candidateDraft: null,
   candidateDraftTypology: "",
   candidateDraftUnitId: "",
@@ -372,6 +371,31 @@ function getCandidateTypology(candidate) {
   return "1";
 }
 
+function renderCandidateMembersSummary(candidate) {
+  const members = getCandidateMembers(candidate).filter((member) => member.name);
+  if (!members.length) {
+    return "";
+  }
+
+  return `
+    <div class="candidate-members-summary">
+      <p class="subtle">Composição da chapa</p>
+      <ul>
+        ${members
+          .map(
+            (member) => `
+              <li>
+                <strong>${escapeHtml(member.role)}</strong>
+                <span>${escapeHtml(member.name)}</span>
+              </li>
+            `,
+          )
+          .join("")}
+      </ul>
+    </div>
+  `;
+}
+
 function buildCandidateDraft(candidate) {
   const unitId = candidate?.unitId || appState.units[0]?.id || "";
   const typology = normalizeTypology(getUnitById(unitId)?.typology || candidate?.typology);
@@ -394,7 +418,6 @@ function buildCandidateDraft(candidate) {
 
 function resetCandidateDraft() {
   uiState.tempCandidatePhoto = "";
-  uiState.tempCandidateMemberPhotos = {};
   uiState.candidateDraft = null;
   uiState.candidateDraftTypology = "";
   uiState.candidateDraftUnitId = "";
@@ -736,7 +759,6 @@ async function handleChange(event) {
       syncCandidateDraftFromForm(form);
     }
     uiState.candidateDraftTypology = normalizeTypology(target.value);
-    uiState.tempCandidateMemberPhotos = {};
     renderApp();
   }
 
@@ -756,7 +778,6 @@ async function handleChange(event) {
         name: uiState.candidateDraft?.members?.[index]?.name || "",
       }));
     }
-    uiState.tempCandidateMemberPhotos = {};
     renderApp();
   }
 
@@ -769,18 +790,6 @@ async function handleChange(event) {
     renderApp();
   }
 
-  if (target instanceof HTMLInputElement && target.dataset.memberPhotoIndex && target.files && target.files[0]) {
-    const form = target.closest("#candidate-form");
-    if (form instanceof HTMLFormElement) {
-      syncCandidateDraftFromForm(form);
-    }
-    const photoIndex = target.dataset.memberPhotoIndex;
-    uiState.tempCandidateMemberPhotos = {
-      ...uiState.tempCandidateMemberPhotos,
-      [photoIndex]: await imageFileToDataUrl(target.files[0]),
-    };
-    renderApp();
-  }
 }
 
 async function applyUnitTypologiesFromReference() {
@@ -1134,20 +1143,10 @@ async function submitCandidateForm(form) {
     typology: normalizeTypology(getUnitById(String(formData.get("unitId") || ""))?.typology),
     photoData: submittedPhoto || uiState.tempCandidatePhoto || (editing ? editing.photoData : ""),
   };
-  const previousMembers = getCandidateMembers(editing);
-  const members = await Promise.all(candidateRoleLabels(payload.typology).map(async (role, index) => {
-    const previous = previousMembers[index] || {};
-    const memberPhotoInput = form.querySelector(`[data-member-photo-index="${index}"]`);
-    const submittedMemberPhoto = memberPhotoInput instanceof HTMLInputElement && memberPhotoInput.files && memberPhotoInput.files[0]
-      ? await imageFileToDataUrl(memberPhotoInput.files[0])
-      : "";
-    return {
-      role,
-      name: String(formData.get(`memberName${index}`) || "").trim(),
-      photoData: submittedMemberPhoto || uiState.tempCandidateMemberPhotos[index] || previous.photoData || "",
-    };
+  const members = candidateRoleLabels(payload.typology).map((role, index) => ({
+    role,
+    name: String(formData.get(`memberName${index}`) || "").trim(),
   }));
-  const primaryMember = members[0] || null;
 
   if (!/^\d{3}$/.test(payload.number)) {
     uiState.candidateNotice = "O número da chapa precisa ter exatamente 3 dígitos.";
@@ -1201,23 +1200,16 @@ async function submitCandidateForm(form) {
       }
 
       if (latestEditing) {
-        const latestMembers = getCandidateMembers(latestEditing);
         latestEditing.number = payload.number;
         latestEditing.name = payload.name;
         latestEditing.unitId = payload.unitId;
         latestEditing.typology = payload.typology;
-        latestEditing.photoData = payload.photoData || primaryMember?.photoData || buildAvatar(payload.name, "#1f6b46");
-        latestEditing.members = members.map((member, index) => ({
-          ...member,
-          photoData:
-            member.photoData ||
-            latestMembers[index]?.photoData ||
-            (index === 0 ? latestEditing.photoData : buildAvatar(member.name, "#255d8b")),
-        }));
+        latestEditing.photoData = payload.photoData || buildAvatar(payload.name, "#1f6b46");
+        latestEditing.members = members;
         return { status: "updated" };
       }
 
-      const photoData = payload.photoData || primaryMember?.photoData || buildAvatar(payload.name, "#1f6b46");
+      const photoData = payload.photoData || buildAvatar(payload.name, "#1f6b46");
       draftState.candidates.unshift({
         id: makeId(),
         createdAt: new Date().toISOString(),
@@ -1226,10 +1218,7 @@ async function submitCandidateForm(form) {
         unitId: payload.unitId,
         typology: payload.typology,
         photoData,
-        members: members.map((member, index) => ({
-          ...member,
-          photoData: member.photoData || (index === 0 ? photoData : buildAvatar(member.name, "#255d8b")),
-        })),
+        members,
       });
       return { status: "created" };
     });
@@ -1881,6 +1870,7 @@ function renderBallotScreen() {
           <strong>${escapeHtml(candidate.name)}</strong>
           <p class="subtle">Unidade</p>
           <strong>${unit ? escapeHtml(unit.name) : "-"}</strong>
+          ${renderCandidateMembersSummary(candidate)}
         </div>
         <img class="candidate-photo" src="${candidate.photoData}" alt="Foto da chapa ${escapeHtml(candidate.name)}">
       </div>
@@ -2386,20 +2376,12 @@ function renderCandidateMemberFields(candidate, typologyValue, draft) {
     .map((role, index) => {
       const member = members[index] || {};
       const draftMember = draftMembers[index] || {};
-      const photo = uiState.tempCandidateMemberPhotos[index] || member.photoData || "";
       return `
         <article class="candidate-member-card">
-          <div class="candidate-member-photo">
-            ${photo ? `<img src="${photo}" alt="Foto de ${escapeHtml(draftMember.name || member.name || role)}">` : "<span>Foto</span>"}
-          </div>
           <div class="candidate-member-fields">
             <div class="field field-light">
               <label for="member-name-${index}">${escapeHtml(role)}</label>
               <input id="member-name-${index}" name="memberName${index}" value="${escapeHtml(draftMember.name ?? member.name ?? "")}" placeholder="Nome completo" required>
-            </div>
-            <div class="field field-light">
-              <label for="member-photo-${index}">Foto ${escapeHtml(role)}</label>
-              <input id="member-photo-${index}" type="file" accept="image/*" data-member-photo-index="${index}">
             </div>
           </div>
         </article>
