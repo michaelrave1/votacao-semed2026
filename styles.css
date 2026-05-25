@@ -1444,6 +1444,17 @@ table {
   border-collapse: collapse;
 }
 
+.table-select {
+  width: min(220px, 100%);
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid #c7d6e4;
+  border-radius: var(--radius-sm);
+  background: white;
+  color: var(--ink);
+  font-weight: 800;
+}
+
 th,
 td {
   text-align: left;

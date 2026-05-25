@@ -12,6 +12,86 @@ const UNIT_TYPOLOGIES = [
   { value: "4", label: "Tipo 4", roles: ["Diretor(a)", "Vice-diretor(a)"] },
   { value: "5", label: "Tipo 5", roles: ["Diretor(a)", "Vice-diretor(a)", "Vice-diretor(a)"] },
 ];
+const UNIT_TYPOLOGY_REFERENCE_VERSION = "porta-voz-2451-2024";
+const UNIT_TYPOLOGY_BY_SLUG = {
+  "e-m-adolfo-bezerra-de-menezes": "4",
+  "e-m-arthur-de-mello-teixeira": "4",
+  "e-m-boa-vista": "4",
+  "e-m-celina-soares-de-paiva": "3",
+  "e-m-doutor-aluizio-rosa-prata": "4",
+  "e-m-frederico-peiro": "2",
+  "e-m-gastao-mesquita-filho": "3",
+  "e-m-joaozinho-e-maria": "2",
+  "e-m-jose-marcus-cherem": "2",
+  "e-m-joubert-de-carvalho": "4",
+  "e-m-madre-maria-georgina": "3",
+  "e-m-maria-carolina-mendes": "3",
+  "e-m-maria-lourencina-palmerio": "3",
+  "e-m-monteiro-lobato": "3",
+  "e-m-norma-sueli-borges": "3",
+  "e-m-padre-eddie-bernardes": "3",
+  "e-m-pequeno-principe": "4",
+  "e-m-prof-anisio-teixeira": "5",
+  "e-m-prof-jose-geraldo-guimaraes": "5",
+  "e-m-prof-jose-macciotti": "4",
+  "e-m-prof-paulo-rodrigues": "4",
+  "e-m-prof-esther-limirio-brigagao": "4",
+  "e-m-prof-geni-chaves": "4",
+  "e-m-prof-jane-luce-araujo": "3",
+  "e-m-prof-luciene-aparecida-do-carmo": "2",
+  "e-m-prof-niza-marquez-guarita": "4",
+  "e-m-prof-olga-de-oliveira": "3",
+  "e-m-prof-stella-chaves": "4",
+  "e-m-prof-terezinha-hueb-de-menezes": "5",
+  "e-m-reis-junior": "3",
+  "e-m-ricardo-misson": "3",
+  "e-m-santa-maria": "4",
+  "e-m-sao-judas-tadeu": "3",
+  "e-m-sebastiao-antonio-leal": "3",
+  "e-m-sitio-do-pica-pau-amarelo": "3",
+  "e-m-totonho-de-morais": "3",
+  "e-m-uberaba": "5",
+  "e-m-urbana-frei-eugenio": "5",
+  "e-m-vicente-alves-trindade": "3",
+  "cemei-angela-beatriz-bonadio-alves": "2",
+  "cemei-aparecidaconceicao-ferreira": "2",
+  "cemei-claudia-aparecida-vilela-mesquita": "2",
+  "cemei-diego-jose-ferreira-lima": "3",
+  "cemei-francisca-valias-wenceslau": "2",
+  "cemei-gervasio-pedro-alves": "2",
+  "cemei-integracao": "1",
+  "cemei-joao-miguel-hueb": "2",
+  "cemei-juscelino-kubitscheck": "3",
+  "cemei-luciano-portelinha-mota": "2",
+  "cemei-marcio-euripedes-martins-dos-santos": "2",
+  "cemei-maria-assis-rezende": "2",
+  "cemei-maria-de-lourdes-vasques-martins-marino": "2",
+  "cemei-maria-de-nazare": "1",
+  "cemei-maria-eduarda-farnezicaetano": "3",
+  "cemei-maria-elisabete-salge-melo": "3",
+  "cemei-maria-rosa-de-oliveira": "1",
+  "cemei-michelle-flavia-martins-pires": "2",
+  "cemei-monica-machiyama": "3",
+  "cemei-monsenhor-juvenal-arduini": "2",
+  "cemei-nicanor-pedro-da-silveira": "2",
+  "cemei-nossa-senhora-de-lourdes": "2",
+  "cemei-octavia-alves-lopes": "1",
+  "cemei-paraiso": "3",
+  "cemei-prof-joao-wilson-de-freitas": "2",
+  "cemei-professor-raimundo-edmundo-de-freitas": "2",
+  "cemei-prof-beatriz-faustino-monteiro": "3",
+  "cemei-prof-dirce-miziara": "3",
+  "cemei-prof-eunice-de-sousa-puhler": "2",
+  "cemei-prof-joana-darccampos-oliveira": "3",
+  "cemei-prof-maria-emerencianacardoso": "3",
+  "cemei-prof-marilia-barbosa-pacheco-silva": "2",
+  "cemei-prof-natalya-dayrell-decarvalho": "2",
+  "cemei-prof-zita-therezinhacapucao": "2",
+  "cemei-solange-aparecidacardoso-da-silva": "3",
+  "cemei-tutunas": "2",
+  "cemei-vovo-adelina": "3",
+  "cemei-vovo-tiana": "2",
+};
 const VOTER_TYPES = ["Familiar ou responsável legal do aluno", "Servidor, Servidora da Unidade","Aluno (EJA 16+)" ];
 const TECH_LOGO_SRC = "./assets/logo-detic.png";
 const MUNICIPAL_LOGO_SRC = "./assets/logo-municipal.png";
@@ -160,6 +240,7 @@ function startStateSync() {
 async function initializeSeedState() {
   try {
     await ensureElectionSeed(createSeedState());
+    await applyUnitTypologiesFromReference();
   } catch (error) {
     stateSyncError = "Nao foi possivel preparar a base inicial no Firestore.";
     console.error(error);
@@ -212,6 +293,10 @@ function getTypology(value) {
   return UNIT_TYPOLOGIES.find((tipology) => tipology.value === normalized) || UNIT_TYPOLOGIES[0];
 }
 
+function getDefaultTypologyForUnit(unitName) {
+  return UNIT_TYPOLOGY_BY_SLUG[slugify(unitName)] || "1";
+}
+
 function candidateRoleLabels(tipologyValue) {
   let viceIndex = 0;
   const typology = getTypology(tipologyValue);
@@ -245,12 +330,16 @@ function getCandidateMembers(candidate) {
 }
 
 function getCandidateTypology(candidate) {
+  const unit = getUnitById(candidate?.unitId || "");
+  if (unit?.typology) {
+    return normalizeTypology(unit.typology);
+  }
+
   if (candidate?.typology) {
     return normalizeTypology(candidate.typology);
   }
 
-  const unit = getUnitById(candidate?.unitId || "");
-  return normalizeTypology(unit?.typology);
+  return "1";
 }
 
 function getVoterWeight(voterType) {
@@ -269,12 +358,15 @@ function isValidVoteType(voteType) {
 }
 
 function createSeedState() {
-  const units = UNIT_NAMES.map((name, index) => ({
-    id: `unit-${String(index + 1).padStart(2, "0")}-${slugify(name).slice(0, 24)}`,
-    name,
-    typology: "1",
-    officeTitle: "DIRETOR",
-  }));
+  const units = UNIT_NAMES.map((name, index) => {
+    const typology = getDefaultTypologyForUnit(name);
+    return {
+      id: `unit-${String(index + 1).padStart(2, "0")}-${slugify(name).slice(0, 24)}`,
+      name,
+      typology,
+      officeTitle: candidateRoleLabels(typology).join(", ").toUpperCase(),
+    };
+  });
 
   const accessAccounts = [
     {
@@ -498,6 +590,11 @@ function handleSubmit(event) {
     submitAccessForm(new FormData(form));
   }
 
+  if (form.id === "units-form") {
+    event.preventDefault();
+    submitUnitsForm(new FormData(form));
+  }
+
   if (form.id === "candidate-form") {
     event.preventDefault();
     submitCandidateForm(new FormData(form));
@@ -555,6 +652,31 @@ function handleChange(event) {
     };
     reader.readAsDataURL(target.files[0]);
   }
+}
+
+async function applyUnitTypologiesFromReference() {
+  await runElectionStateTransaction((draftState) => {
+    draftState.settings = draftState.settings || {};
+    if (draftState.settings.unitTypologyReferenceVersion === UNIT_TYPOLOGY_REFERENCE_VERSION) {
+      return { status: "current" };
+    }
+
+    draftState.units.forEach((unit) => {
+      const typology = getDefaultTypologyForUnit(unit.name);
+      unit.typology = typology;
+      unit.officeTitle = candidateRoleLabels(typology).join(", ").toUpperCase();
+    });
+
+    draftState.candidates.forEach((candidate) => {
+      const unit = draftState.units.find((item) => item.id === candidate.unitId) || null;
+      if (unit) {
+        candidate.typology = unit.typology;
+      }
+    });
+
+    draftState.settings.unitTypologyReferenceVersion = UNIT_TYPOLOGY_REFERENCE_VERSION;
+    return { status: "updated" };
+  });
 }
 
 function submitLogin(formData) {
@@ -790,13 +912,43 @@ async function submitAccessForm(formData) {
   }
 }
 
+async function submitUnitsForm(formData) {
+  try {
+    await runElectionStateTransaction((draftState) => {
+      draftState.units.forEach((unit) => {
+        const typology = normalizeTypology(formData.get(`typology:${unit.id}`));
+        unit.typology = typology;
+        unit.officeTitle = candidateRoleLabels(typology).join(", ").toUpperCase();
+      });
+
+      draftState.candidates.forEach((candidate) => {
+        const unit = draftState.units.find((item) => item.id === candidate.unitId) || null;
+        if (unit) {
+          candidate.typology = unit.typology;
+        }
+      });
+
+      draftState.settings = draftState.settings || {};
+      draftState.settings.unitTypologyReferenceVersion = UNIT_TYPOLOGY_REFERENCE_VERSION;
+      return { status: "updated" };
+    });
+
+    uiState.accessNotice = "Tipologias das unidades atualizadas com sucesso.";
+    renderApp();
+  } catch (error) {
+    uiState.accessNotice = "Nao foi possivel atualizar as tipologias das unidades.";
+    console.error(error);
+    renderApp();
+  }
+}
+
 async function submitCandidateForm(formData) {
   const editing = getActiveCandidate();
   const payload = {
     number: String(formData.get("number") || "").trim(),
     name: String(formData.get("name") || "").trim(),
     unitId: String(formData.get("unitId") || ""),
-    typology: normalizeTypology(formData.get("typology")),
+    typology: normalizeTypology(getUnitById(String(formData.get("unitId") || ""))?.typology),
     photoData: uiState.tempCandidatePhoto || (editing ? editing.photoData : ""),
   };
   const previousMembers = getCandidateMembers(editing);
@@ -871,11 +1023,6 @@ async function submitCandidateForm(formData) {
           ...member,
           photoData: member.photoData || (index === 0 ? latestEditing.photoData : buildAvatar(member.name, "#255d8b")),
         }));
-        const latestUnit = draftState.units.find((unit) => unit.id === payload.unitId) || null;
-        if (latestUnit) {
-          latestUnit.typology = payload.typology;
-          latestUnit.officeTitle = candidateRoleLabels(payload.typology).join(", ").toUpperCase();
-        }
         return { status: "updated" };
       }
 
@@ -893,12 +1040,6 @@ async function submitCandidateForm(formData) {
           photoData: member.photoData || (index === 0 ? photoData : buildAvatar(member.name, "#255d8b")),
         })),
       });
-      const latestUnit = draftState.units.find((unit) => unit.id === payload.unitId) || null;
-      if (latestUnit) {
-        latestUnit.typology = payload.typology;
-        latestUnit.officeTitle = candidateRoleLabels(payload.typology).join(", ").toUpperCase();
-      }
-
       return { status: "created" };
     });
 
@@ -1683,6 +1824,7 @@ function renderAdminScreen() {
 
         <nav class="admin-tabs">
           ${renderTab("access", "Acessos")}
+          ${renderTab("units", "Unidades")}
           ${renderTab("candidates", "Chapas")}
           ${renderTab("sessions", "Tokens")}
           ${renderTab("results", "Resultados")}
@@ -1716,6 +1858,9 @@ function renderTab(tabKey, label) {
 function renderAdminTabBody() {
   if (uiState.adminTab === "access") {
     return renderAccessTab();
+  }
+  if (uiState.adminTab === "units") {
+    return renderUnitsTab();
   }
   if (uiState.adminTab === "candidates") {
     return renderCandidatesTab();
@@ -1832,6 +1977,56 @@ function renderAccessTab() {
   `;
 }
 
+function renderUnitsTab() {
+  const units = [...appState.units].sort((left, right) => left.name.localeCompare(right.name, "pt-BR"));
+
+  return `
+    <section class="table-card stack">
+      <div class="status-strip">
+        <span>
+          <strong>Perfil das unidades</strong><br>
+          <span class="subtle">A tipologia da unidade define a composição das chapas cadastradas para ela.</span>
+        </span>
+      </div>
+      ${uiState.accessNotice ? `<div class="flash flash-neutral">${escapeHtml(uiState.accessNotice)}</div>` : ""}
+      <form id="units-form" class="stack">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Unidade escolar</th>
+                <th>Tipologia</th>
+                <th>Composição da chapa</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${units
+                .map((unit) => {
+                  const typology = getTypology(unit.typology);
+                  return `
+                    <tr>
+                      <td><strong>${escapeHtml(unit.name)}</strong></td>
+                      <td>
+                        <select name="typology:${escapeHtml(unit.id)}" class="table-select">
+                          ${UNIT_TYPOLOGIES.map((item) => optionTag(item.value, typology.value, item.label)).join("")}
+                        </select>
+                      </td>
+                      <td>${escapeHtml(typology.roles.join(", "))}</td>
+                    </tr>
+                  `;
+                })
+                .join("")}
+            </tbody>
+          </table>
+        </div>
+        <div class="actions-row">
+          <button class="btn btn-primary" type="submit">Salvar tipologias</button>
+        </div>
+      </form>
+    </section>
+  `;
+}
+
 function renderCandidateMemberFields(candidate, typologyValue) {
   const members = getCandidateMembers(candidate);
   return candidateRoleLabels(typologyValue)
@@ -1885,12 +2080,9 @@ function renderCandidateEditorPage(editing, selectedUnit, selectedTypology) {
                 ${appState.units.map((unit) => optionTag(unit.id, selectedUnit ? selectedUnit.id : "", unit.name)).join("")}
               </select>
             </div>
-            <div class="field field-light">
-              <label for="candidate-typology">Tipologia da unidade</label>
-              <select id="candidate-typology" name="typology">
-                ${UNIT_TYPOLOGIES.map((tipology) => optionTag(tipology.value, selectedTypology, `${tipology.label} - ${tipology.roles.join(", ")}`)).join("")}
-              </select>
-            </div>
+          </div>
+          <div class="release-note">
+            Tipologia da unidade: <strong>${escapeHtml(getTypology(selectedTypology).label)}</strong> - ${escapeHtml(getTypology(selectedTypology).roles.join(", "))}
           </div>
           <div class="field field-light">
             <label for="candidate-name">Nome da chapa</label>

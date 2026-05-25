@@ -14,13 +14,13 @@ import {
 import { getDatabase } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCin7cu5RYnssLNmFKjqHFiL3unNfgNsIA",
-  authDomain: "votacao-semed-2026.firebaseapp.com",
-  projectId: "votacao-semed-2026",
-  storageBucket: "votacao-semed-2026.firebasestorage.app",
-  messagingSenderId: "270357517464",
-  appId: "1:270357517464:web:7b9f8c9b64262abc2b6ced",
-  measurementId: "G-V2QV1YC9NF",
+  apiKey: "AIzaSyDUGSaaW_z4NQxqzXH90MQlijElNHDNuTw",
+  authDomain: "votacao-diretores2026.firebaseapp.com",
+  projectId: "votacao-diretores2026",
+  storageBucket: "votacao-diretores2026.firebasestorage.app",
+  messagingSenderId: "312627708775",
+  appId: "1:312627708775:web:186f3e944bf962c756a5c2",
+  measurementId: "G-JY04QMQ9D3",
 };
 
 const STATE_COLLECTION = "urnaState";
