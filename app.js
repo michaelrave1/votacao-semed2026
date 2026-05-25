@@ -231,7 +231,10 @@ function startStateSync() {
       renderApp();
     },
     onError(error) {
-      stateSyncError = "Nao foi possivel sincronizar os dados da votacao com o Firestore.";
+      stateSyncError = buildFirestoreErrorMessage(
+        "Nao foi possivel sincronizar os dados da votacao com o Firestore.",
+        error,
+      );
       console.error(error);
       renderApp();
     },
@@ -245,12 +248,34 @@ async function initializeSeedState() {
     await ensureElectionSeed(createSeedState());
     await applyUnitTypologiesFromReference();
   } catch (error) {
-    stateSyncError = "Nao foi possivel preparar a base inicial no Firestore.";
+    stateSyncError = buildFirestoreErrorMessage(
+      "Nao foi possivel preparar a base inicial no Firestore.",
+      error,
+    );
     console.error(error);
   } finally {
     isSeedCheckComplete = true;
     renderApp();
   }
+}
+
+function buildFirestoreErrorMessage(message, error) {
+  const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
+  const detail = error && typeof error === "object" && "message" in error ? String(error.message) : "";
+
+  if (code === "permission-denied") {
+    return `${message} Verifique as regras do Firestore no projeto Firebase e permita leitura/escrita para a colecao urnaState.`;
+  }
+
+  if (code === "failed-precondition" || detail.toLowerCase().includes("database")) {
+    return `${message} Verifique se o banco Cloud Firestore foi criado no projeto Firebase.`;
+  }
+
+  if (code || detail) {
+    return `${message} Detalhe: ${code || detail}`;
+  }
+
+  return message;
 }
 
 function loadState() {
