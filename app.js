@@ -200,6 +200,7 @@ const uiState = {
   ballotAlert: "",
   tempCandidatePhoto: "",
   tempCandidateMemberPhotos: {},
+  candidateDraft: null,
   candidateDraftTypology: "",
   candidateDraftUnitId: "",
   candidateEditorOpen: false,
@@ -215,6 +216,7 @@ let stateSyncError = "";
 document.addEventListener("keydown", handleGlobalKeydown);
 appRoot.addEventListener("click", handleClick);
 appRoot.addEventListener("submit", handleSubmit);
+appRoot.addEventListener("input", handleInput);
 appRoot.addEventListener("change", handleChange);
 
 renderApp();
@@ -370,6 +372,64 @@ function getCandidateTypology(candidate) {
   return "1";
 }
 
+function buildCandidateDraft(candidate) {
+  const unitId = candidate?.unitId || appState.units[0]?.id || "";
+  const typology = normalizeTypology(getUnitById(unitId)?.typology || candidate?.typology);
+  const members = candidateRoleLabels(typology).map((role, index) => {
+    const member = getCandidateMembers(candidate)[index] || {};
+    return {
+      role,
+      name: member.name || "",
+    };
+  });
+
+  return {
+    number: candidate?.number || "",
+    name: candidate?.name || "",
+    unitId,
+    typology,
+    members,
+  };
+}
+
+function resetCandidateDraft() {
+  uiState.tempCandidatePhoto = "";
+  uiState.tempCandidateMemberPhotos = {};
+  uiState.candidateDraft = null;
+  uiState.candidateDraftTypology = "";
+  uiState.candidateDraftUnitId = "";
+}
+
+function ensureCandidateDraft(candidate) {
+  if (!uiState.candidateDraft) {
+    uiState.candidateDraft = buildCandidateDraft(candidate);
+  }
+
+  return uiState.candidateDraft;
+}
+
+function syncCandidateDraftFromForm(form) {
+  if (!(form instanceof HTMLFormElement)) {
+    return;
+  }
+
+  const formData = new FormData(form);
+  const unitId = String(formData.get("unitId") || "");
+  const typology = normalizeTypology(getUnitById(unitId)?.typology || uiState.candidateDraftTypology);
+  uiState.candidateDraft = {
+    number: String(formData.get("number") || "").trim(),
+    name: String(formData.get("name") || "").trim(),
+    unitId,
+    typology,
+    members: candidateRoleLabels(typology).map((role, index) => ({
+      role,
+      name: String(formData.get(`memberName${index}`) || "").trim(),
+    })),
+  };
+  uiState.candidateDraftUnitId = unitId;
+  uiState.candidateDraftTypology = typology;
+}
+
 function getVoterWeight(voterType) {
   const normalized = String(voterType || "").toLowerCase();
   return normalized.includes("servidor") ? 2 : 1;
@@ -520,6 +580,7 @@ function handleClick(event) {
     uiState.accessEditorOpen = false;
     uiState.unitEditorOpen = false;
     uiState.candidateEditorOpen = false;
+    resetCandidateDraft();
     renderApp();
   } else if (action === "digit") {
     pushDigit(value);
@@ -565,29 +626,22 @@ function handleClick(event) {
     renderApp();
   } else if (action === "edit-candidate") {
     uiState.activeCandidateId = value;
-    uiState.tempCandidatePhoto = "";
-    uiState.tempCandidateMemberPhotos = {};
-    uiState.candidateDraftTypology = "";
-    uiState.candidateDraftUnitId = "";
+    resetCandidateDraft();
+    uiState.candidateDraft = buildCandidateDraft(getActiveCandidate());
     uiState.candidateEditorOpen = true;
     uiState.adminTab = "candidates";
     uiState.candidateNotice = "";
     renderApp();
   } else if (action === "new-candidate") {
     uiState.activeCandidateId = null;
-    uiState.tempCandidatePhoto = "";
-    uiState.tempCandidateMemberPhotos = {};
-    uiState.candidateDraftTypology = "";
-    uiState.candidateDraftUnitId = "";
+    resetCandidateDraft();
+    uiState.candidateDraft = buildCandidateDraft(null);
     uiState.candidateEditorOpen = true;
     uiState.candidateNotice = "";
     renderApp();
   } else if (action === "close-candidate-editor") {
     uiState.activeCandidateId = null;
-    uiState.tempCandidatePhoto = "";
-    uiState.tempCandidateMemberPhotos = {};
-    uiState.candidateDraftTypology = "";
-    uiState.candidateDraftUnitId = "";
+    resetCandidateDraft();
     uiState.candidateEditorOpen = false;
     uiState.candidateNotice = "";
     renderApp();
@@ -602,10 +656,7 @@ function handleClick(event) {
     if (value === "candidate") {
       uiState.activeCandidateId = null;
       uiState.candidateNotice = "";
-      uiState.tempCandidatePhoto = "";
-      uiState.tempCandidateMemberPhotos = {};
-      uiState.candidateDraftTypology = "";
-      uiState.candidateDraftUnitId = "";
+      resetCandidateDraft();
       uiState.candidateEditorOpen = false;
     }
     renderApp();
@@ -651,7 +702,19 @@ function handleSubmit(event) {
   }
 }
 
-function handleChange(event) {
+function handleInput(event) {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+
+  const form = target.closest("#candidate-form");
+  if (form instanceof HTMLFormElement) {
+    syncCandidateDraftFromForm(form);
+  }
+}
+
+async function handleChange(event) {
   const target = event.target;
   if (!(target instanceof HTMLElement)) {
     return;
@@ -668,29 +731,55 @@ function handleChange(event) {
   }
 
   if (target.id === "candidate-typology" && target instanceof HTMLSelectElement) {
+    const form = target.closest("#candidate-form");
+    if (form instanceof HTMLFormElement) {
+      syncCandidateDraftFromForm(form);
+    }
     uiState.candidateDraftTypology = normalizeTypology(target.value);
     uiState.tempCandidateMemberPhotos = {};
     renderApp();
   }
 
   if (target.id === "candidate-unit" && target instanceof HTMLSelectElement) {
+    const form = target.closest("#candidate-form");
     const unit = getUnitById(target.value);
+    if (form instanceof HTMLFormElement) {
+      syncCandidateDraftFromForm(form);
+    }
     uiState.candidateDraftUnitId = target.value;
     uiState.candidateDraftTypology = normalizeTypology(unit?.typology);
+    if (uiState.candidateDraft) {
+      uiState.candidateDraft.unitId = target.value;
+      uiState.candidateDraft.typology = uiState.candidateDraftTypology;
+      uiState.candidateDraft.members = candidateRoleLabels(uiState.candidateDraftTypology).map((role, index) => ({
+        role,
+        name: uiState.candidateDraft?.members?.[index]?.name || "",
+      }));
+    }
     uiState.tempCandidateMemberPhotos = {};
     renderApp();
   }
 
   if (target.id === "candidate-photo" && target instanceof HTMLInputElement && target.files && target.files[0]) {
-    uiState.tempCandidatePhoto = "";
+    const form = target.closest("#candidate-form");
+    if (form instanceof HTMLFormElement) {
+      syncCandidateDraftFromForm(form);
+    }
+    uiState.tempCandidatePhoto = await imageFileToDataUrl(target.files[0]);
+    renderApp();
   }
 
   if (target instanceof HTMLInputElement && target.dataset.memberPhotoIndex && target.files && target.files[0]) {
+    const form = target.closest("#candidate-form");
+    if (form instanceof HTMLFormElement) {
+      syncCandidateDraftFromForm(form);
+    }
     const photoIndex = target.dataset.memberPhotoIndex;
     uiState.tempCandidateMemberPhotos = {
       ...uiState.tempCandidateMemberPhotos,
-      [photoIndex]: "",
+      [photoIndex]: await imageFileToDataUrl(target.files[0]),
     };
+    renderApp();
   }
 }
 
@@ -1031,6 +1120,7 @@ async function submitCandidateForm(form) {
     submitButton.disabled = true;
   }
 
+  syncCandidateDraftFromForm(form);
   const formData = new FormData(form);
   const editing = getActiveCandidate();
   const mainPhotoInput = form.querySelector("#candidate-photo");
@@ -1116,7 +1206,7 @@ async function submitCandidateForm(form) {
         latestEditing.name = payload.name;
         latestEditing.unitId = payload.unitId;
         latestEditing.typology = payload.typology;
-        latestEditing.photoData = submittedPhoto || latestEditing.photoData || primaryMember?.photoData || buildAvatar(payload.name, "#1f6b46");
+        latestEditing.photoData = payload.photoData || primaryMember?.photoData || buildAvatar(payload.name, "#1f6b46");
         latestEditing.members = members.map((member, index) => ({
           ...member,
           photoData:
@@ -1153,10 +1243,7 @@ async function submitCandidateForm(form) {
     if (result.status === "missing") {
       uiState.candidateNotice = "A chapa em ediÃ§Ã£o nÃ£o foi encontrada.";
       uiState.activeCandidateId = null;
-      uiState.tempCandidatePhoto = "";
-      uiState.tempCandidateMemberPhotos = {};
-      uiState.candidateDraftTypology = "";
-      uiState.candidateDraftUnitId = "";
+      resetCandidateDraft();
       uiState.candidateEditorOpen = false;
       renderApp();
       return;
@@ -1166,10 +1253,7 @@ async function submitCandidateForm(form) {
       ? "Chapa atualizada com sucesso."
       : "Chapa cadastrada com sucesso.";
     uiState.activeCandidateId = null;
-    uiState.tempCandidatePhoto = "";
-    uiState.tempCandidateMemberPhotos = {};
-    uiState.candidateDraftTypology = "";
-    uiState.candidateDraftUnitId = "";
+    resetCandidateDraft();
     uiState.candidateEditorOpen = false;
     renderApp();
   } catch (error) {
@@ -2295,21 +2379,23 @@ function renderUnitEditorPage(unit) {
   `;
 }
 
-function renderCandidateMemberFields(candidate, typologyValue) {
+function renderCandidateMemberFields(candidate, typologyValue, draft) {
   const members = getCandidateMembers(candidate);
+  const draftMembers = Array.isArray(draft?.members) ? draft.members : [];
   return candidateRoleLabels(typologyValue)
     .map((role, index) => {
       const member = members[index] || {};
+      const draftMember = draftMembers[index] || {};
       const photo = uiState.tempCandidateMemberPhotos[index] || member.photoData || "";
       return `
         <article class="candidate-member-card">
           <div class="candidate-member-photo">
-            ${photo ? `<img src="${photo}" alt="Foto de ${escapeHtml(member.name || role)}">` : "<span>Foto</span>"}
+            ${photo ? `<img src="${photo}" alt="Foto de ${escapeHtml(draftMember.name || member.name || role)}">` : "<span>Foto</span>"}
           </div>
           <div class="candidate-member-fields">
             <div class="field field-light">
               <label for="member-name-${index}">${escapeHtml(role)}</label>
-              <input id="member-name-${index}" name="memberName${index}" value="${escapeHtml(member.name || "")}" placeholder="Nome completo" required>
+              <input id="member-name-${index}" name="memberName${index}" value="${escapeHtml(draftMember.name ?? member.name ?? "")}" placeholder="Nome completo" required>
             </div>
             <div class="field field-light">
               <label for="member-photo-${index}">Foto ${escapeHtml(role)}</label>
@@ -2323,7 +2409,10 @@ function renderCandidateMemberFields(candidate, typologyValue) {
 }
 
 function renderCandidateEditorPage(editing, selectedUnit, selectedTypology) {
+  const draft = ensureCandidateDraft(editing);
   const currentPhoto = uiState.tempCandidatePhoto || (editing ? editing.photoData : "");
+  const draftUnitId = draft.unitId || selectedUnit?.id || "";
+  const draftTypology = draft.typology || selectedTypology;
 
   return `
     <section class="candidate-editor-page">
@@ -2340,21 +2429,21 @@ function renderCandidateEditorPage(editing, selectedUnit, selectedTypology) {
           <div class="split-fields">
             <div class="field field-light">
               <label for="candidate-number">Número</label>
-              <input id="candidate-number" name="number" inputmode="numeric" maxlength="3" value="${escapeHtml(editing ? editing.number : "")}" placeholder="101" required>
+              <input id="candidate-number" name="number" inputmode="numeric" maxlength="3" value="${escapeHtml(draft.number)}" placeholder="101" required>
             </div>
             <div class="field field-light">
               <label for="candidate-unit">Unidade escolar</label>
               <select id="candidate-unit" name="unitId">
-                ${appState.units.map((unit) => optionTag(unit.id, selectedUnit ? selectedUnit.id : "", unit.name)).join("")}
+                ${appState.units.map((unit) => optionTag(unit.id, draftUnitId, unit.name)).join("")}
               </select>
             </div>
           </div>
           <div class="release-note">
-            Tipologia da unidade: <strong>${escapeHtml(getTypology(selectedTypology).label)}</strong> - ${escapeHtml(getTypology(selectedTypology).roles.join(", "))}
+            Tipologia da unidade: <strong>${escapeHtml(getTypology(draftTypology).label)}</strong> - ${escapeHtml(getTypology(draftTypology).roles.join(", "))}
           </div>
           <div class="field field-light">
             <label for="candidate-name">Nome da chapa</label>
-            <input id="candidate-name" name="name" value="${escapeHtml(editing ? editing.name : "")}" placeholder="Chapa Exemplo" required>
+            <input id="candidate-name" name="name" value="${escapeHtml(draft.name)}" placeholder="Chapa Exemplo" required>
           </div>
           <div class="field field-light">
             <label for="candidate-photo">Foto da chapa</label>
@@ -2362,7 +2451,7 @@ function renderCandidateEditorPage(editing, selectedUnit, selectedTypology) {
           </div>
           ${currentPhoto ? `<img class="photo-preview" src="${currentPhoto}" alt="Prévia da chapa">` : ""}
           <div class="candidate-members">
-            ${renderCandidateMemberFields(editing, selectedTypology)}
+            ${renderCandidateMemberFields(editing, draftTypology, draft)}
           </div>
           <div class="actions-row">
             <button class="btn btn-primary" type="submit">${editing ? "Salvar chapa" : "Cadastrar chapa"}</button>
