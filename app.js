@@ -682,23 +682,15 @@ function handleChange(event) {
   }
 
   if (target.id === "candidate-photo" && target instanceof HTMLInputElement && target.files && target.files[0]) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      uiState.tempCandidatePhoto = typeof reader.result === "string" ? reader.result : "";
-    };
-    reader.readAsDataURL(target.files[0]);
+    uiState.tempCandidatePhoto = "";
   }
 
   if (target instanceof HTMLInputElement && target.dataset.memberPhotoIndex && target.files && target.files[0]) {
     const photoIndex = target.dataset.memberPhotoIndex;
-    const reader = new FileReader();
-    reader.onload = () => {
-      uiState.tempCandidateMemberPhotos = {
-        ...uiState.tempCandidateMemberPhotos,
-        [photoIndex]: typeof reader.result === "string" ? reader.result : "",
-      };
+    uiState.tempCandidateMemberPhotos = {
+      ...uiState.tempCandidateMemberPhotos,
+      [photoIndex]: "",
     };
-    reader.readAsDataURL(target.files[0]);
   }
 }
 
@@ -999,17 +991,37 @@ async function submitUnitsForm(formData) {
   }
 }
 
-function fileToDataUrl(file) {
+function imageFileToDataUrl(file) {
   return new Promise((resolve) => {
     if (!file) {
       resolve("");
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
-    reader.onerror = () => resolve("");
-    reader.readAsDataURL(file);
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    image.onload = () => {
+      const maxSide = 520;
+      const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const context = canvas.getContext("2d");
+      if (!context) {
+        URL.revokeObjectURL(objectUrl);
+        resolve("");
+        return;
+      }
+
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(objectUrl);
+      resolve(canvas.toDataURL("image/jpeg", 0.72));
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve("");
+    };
+    image.src = objectUrl;
   });
 }
 
@@ -1023,7 +1035,7 @@ async function submitCandidateForm(form) {
   const editing = getActiveCandidate();
   const mainPhotoInput = form.querySelector("#candidate-photo");
   const submittedPhoto = mainPhotoInput instanceof HTMLInputElement && mainPhotoInput.files && mainPhotoInput.files[0]
-    ? await fileToDataUrl(mainPhotoInput.files[0])
+    ? await imageFileToDataUrl(mainPhotoInput.files[0])
     : "";
   const payload = {
     number: String(formData.get("number") || "").trim(),
@@ -1037,7 +1049,7 @@ async function submitCandidateForm(form) {
     const previous = previousMembers[index] || {};
     const memberPhotoInput = form.querySelector(`[data-member-photo-index="${index}"]`);
     const submittedMemberPhoto = memberPhotoInput instanceof HTMLInputElement && memberPhotoInput.files && memberPhotoInput.files[0]
-      ? await fileToDataUrl(memberPhotoInput.files[0])
+      ? await imageFileToDataUrl(memberPhotoInput.files[0])
       : "";
     return {
       role,
@@ -1099,14 +1111,18 @@ async function submitCandidateForm(form) {
       }
 
       if (latestEditing) {
+        const latestMembers = getCandidateMembers(latestEditing);
         latestEditing.number = payload.number;
         latestEditing.name = payload.name;
         latestEditing.unitId = payload.unitId;
         latestEditing.typology = payload.typology;
-        latestEditing.photoData = payload.photoData || primaryMember?.photoData || latestEditing.photoData;
+        latestEditing.photoData = submittedPhoto || latestEditing.photoData || primaryMember?.photoData || buildAvatar(payload.name, "#1f6b46");
         latestEditing.members = members.map((member, index) => ({
           ...member,
-          photoData: member.photoData || (index === 0 ? latestEditing.photoData : buildAvatar(member.name, "#255d8b")),
+          photoData:
+            member.photoData ||
+            latestMembers[index]?.photoData ||
+            (index === 0 ? latestEditing.photoData : buildAvatar(member.name, "#255d8b")),
         }));
         return { status: "updated" };
       }
