@@ -90,7 +90,7 @@ const UNIT_TYPOLOGY_BY_SLUG = {
   "cemei-solange-aparecida-cardoso-da-silva": "3",
   "cemei-tutunas": "2",
   "cemei-vovo-adelina": "3",
-  "cemei-vovo-tiana": "2",
+  "cemei-vovo-tiana": "3",
 };
 const VOTER_TYPES = ["Familiar ou responsável legal do aluno", "Servidor, Servidora da Unidade","Aluno (EJA 16+)" ];
 const TECH_LOGO_SRC = "./assets/logo-detic.png";
