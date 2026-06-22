@@ -1652,7 +1652,7 @@ function renderAppFrame(content) {
       <header class="brand-header">
         <div class="brand-header-inner">
           <div class="app-brand">
-            <div class="login-mark">UE</div>
+            <div class="login-mark">L&Nn</div>
             <div>
               <strong>Urna Escolar SEMED</strong>
               <span>Eleição de Diretores das Unidades Escolares</span>
@@ -1675,7 +1675,7 @@ function renderLoginScreen() {
   return `
     <main class="login-page">
       <header class="login-topbar">
-        <div class="login-mark">UE</div>
+        <div class="login-mark">L&Nn</div>
         <div>
           <strong>Urna Escolar SEMED</strong>
           <span>Eleição de Diretores das Unidades Escolares</span>
