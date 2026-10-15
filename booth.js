@@ -2,7 +2,7 @@ import {
   createEmptyElectionState,
   runElectionStateTransaction,
   subscribeToElectionState,
-} from "./firebase-store.js";
+} from "./supabase-store.js";
 
 const BOOTH_UNIT_KEY = "urna-escolar-booth-unit";
 const FINISH_DELAY_MS = 2600;
@@ -43,7 +43,7 @@ function startStateSync() {
       renderApp();
     },
     onError(error) {
-      stateSyncError = "Nao foi possivel sincronizar a urna com o Firestore.";
+      stateSyncError = "Nao foi possivel sincronizar a urna com o Supabase.";
       console.error(error);
       renderApp();
     },
@@ -60,55 +60,6 @@ function getInitialUnitId() {
     return queryUnit;
   }
   return localStorage.getItem(BOOTH_UNIT_KEY) || "";
-}
-
-function loadState() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    return {
-      units: [],
-      candidates: [],
-      boothAssignments: [],
-      votingSessions: [],
-      votes: [],
-    };
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-    if (
-      !parsed ||
-      !Array.isArray(parsed.units) ||
-      !Array.isArray(parsed.candidates) ||
-      !Array.isArray(parsed.boothAssignments) ||
-      !Array.isArray(parsed.votingSessions) ||
-      !Array.isArray(parsed.votes)
-    ) {
-      throw new Error("Estado inválido.");
-    }
-    return parsed;
-  } catch (error) {
-    return {
-      units: [],
-      candidates: [],
-      boothAssignments: [],
-      votingSessions: [],
-      votes: [],
-    };
-  }
-}
-
-function persistState(nextState) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
-}
-
-function handleExternalStateChange(event) {
-  if (event.key !== STORAGE_KEY) {
-    return;
-  }
-
-  appState = loadState();
-  renderApp();
 }
 
 function handleGlobalKeydown(event) {
@@ -324,69 +275,10 @@ async function confirmVote() {
       renderApp();
     }, FINISH_DELAY_MS);
   } catch (error) {
-    uiState.ballotAlert = "Nao foi possivel registrar o voto no Firestore.";
+    uiState.ballotAlert = "Nao foi possivel registrar o voto no Supabase.";
     console.error(error);
     renderApp();
   }
-}
-
-function confirmVoteLegacy() {
-  const session = getLiveSessionForUnit(uiState.selectedUnitId);
-  if (!session) {
-    uiState.ballotAlert = "Aguardando liberação do mesário.";
-    renderApp();
-    return;
-  }
-
-  const candidate = getCurrentCandidate();
-  let voteType = "Válido";
-  let candidateNumber = uiState.ballotDigits;
-  let candidateName = candidate ? candidate.name : "";
-
-  if (uiState.ballotBlank && uiState.ballotDigits.length === 0) {
-    voteType = "Em Branco";
-    candidateNumber = "";
-    candidateName = "";
-  } else if (uiState.ballotDigits.length !== 3) {
-    uiState.ballotAlert = "Digite os 3 dígitos do candidato ou escolha BRANCO.";
-    renderApp();
-    return;
-  } else if (!candidate) {
-    voteType = "Nulo";
-    candidateName = "";
-  }
-
-  const now = new Date().toISOString();
-  appState.votes.unshift({
-    id: makeId(),
-    sessionId: session.id,
-    token: session.token,
-    createdAt: now,
-    candidateNumber,
-    candidateName,
-    voteType,
-    voterType: session.voterType,
-    unitId: session.unitId,
-    unitName: session.unitName,
-    mesarioName: session.mesarioName,
-    mesarioEmail: session.mesarioEmail,
-  });
-
-  session.status = "Votou";
-  session.usedAt = now;
-  appState.boothAssignments = appState.boothAssignments.filter((assignment) => assignment.unitId !== session.unitId);
-  persistState(appState);
-
-  playBallotFinishSound();
-  resetBallotState();
-  uiState.finishMessage = `Token ${session.token} finalizado para ${session.voterType}.`;
-  renderApp();
-
-  clearTimeout(finishTimer);
-  finishTimer = window.setTimeout(() => {
-    uiState.finishMessage = "";
-    renderApp();
-  }, FINISH_DELAY_MS);
 }
 
 function playBallotFinishSound() {
@@ -402,7 +294,7 @@ function renderApp() {
 
   if (!isStateReady || !isSeedCheckComplete) {
     appRoot.innerHTML = renderAppFrame(
-      renderStatusScreen("Conectando ao Firestore", "A urna esta carregando os dados em tempo real."),
+      renderStatusScreen("Conectando ao Supabase", "A urna esta carregando os dados em tempo real."),
     );
     return;
   }

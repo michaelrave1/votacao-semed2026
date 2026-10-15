@@ -3,7 +3,7 @@ import {
   ensureElectionSeed,
   runElectionStateTransaction,
   subscribeToElectionState,
-} from "./firebase-store.js";
+} from "./supabase-store.js";
 const FINISH_DELAY_MS = 2600;
 const UNIT_TYPOLOGIES = [
   { value: "1", label: "Tipo 1", roles: ["Diretor(a)"] },
@@ -232,8 +232,8 @@ function startStateSync() {
       renderApp();
     },
     onError(error) {
-      stateSyncError = buildFirestoreErrorMessage(
-        "Nao foi possivel sincronizar os dados da votacao com o Firestore.",
+      stateSyncError = buildSupabaseErrorMessage(
+        "Nao foi possivel sincronizar os dados da votacao com o Supabase.",
         error,
       );
       console.error(error);
@@ -249,8 +249,8 @@ async function initializeSeedState() {
     await ensureElectionSeed(createSeedState());
     await applyUnitTypologiesFromReference();
   } catch (error) {
-    stateSyncError = buildFirestoreErrorMessage(
-      "Nao foi possivel preparar a base inicial no Firestore.",
+    stateSyncError = buildSupabaseErrorMessage(
+      "Nao foi possivel preparar a base inicial no Supabase.",
       error,
     );
     console.error(error);
@@ -260,16 +260,20 @@ async function initializeSeedState() {
   }
 }
 
-function buildFirestoreErrorMessage(message, error) {
+function buildSupabaseErrorMessage(message, error) {
   const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
   const detail = error && typeof error === "object" && "message" in error ? String(error.message) : "";
 
-  if (code === "permission-denied") {
-    return `${message} Verifique as regras do Firestore no projeto Firebase e permita leitura/escrita para os documentos urnaState/chapas e urnaState/votacao.`;
+  if (code === "SUPABASE_CONFIG_MISSING") {
+    return `${message} Configure a URL e a chave publica em supabase-config.js.`;
   }
 
-  if (code === "failed-precondition" || detail.toLowerCase().includes("database")) {
-    return `${message} Verifique se o banco Cloud Firestore foi criado no projeto Firebase.`;
+  if (code === "42P01" || code === "PGRST202" || code === "PGRST205") {
+    return `${message} Execute o arquivo supabase.sql no SQL Editor do projeto.`;
+  }
+
+  if (code === "42501") {
+    return `${message} Verifique as permissoes e politicas RLS definidas em supabase.sql.`;
   }
 
   if (code || detail) {
@@ -277,39 +281,6 @@ function buildFirestoreErrorMessage(message, error) {
   }
 
   return message;
-}
-
-function loadState() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    const seeded = createSeedState();
-    persistState(seeded);
-    return seeded;
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-    if (
-      !parsed ||
-      !Array.isArray(parsed.units) ||
-      !Array.isArray(parsed.accessAccounts) ||
-      !Array.isArray(parsed.candidates) ||
-      !Array.isArray(parsed.boothAssignments) ||
-      !Array.isArray(parsed.votingSessions) ||
-      !Array.isArray(parsed.votes)
-    ) {
-      throw new Error("Estado inválido.");
-    }
-    return parsed;
-  } catch (error) {
-    const seeded = createSeedState();
-    persistState(seeded);
-    return seeded;
-  }
-}
-
-function persistState(nextState) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
 }
 
 function normalizeTypology(value) {
@@ -535,15 +506,6 @@ function createSeedState() {
     votingSessions: [],
     votes: [],
   };
-}
-
-function handleExternalStateChange(event) {
-  if (event.key !== STORAGE_KEY) {
-    return;
-  }
-
-  appState = loadState();
-  renderApp();
 }
 
 function buildAvatar(name, color) {
@@ -944,7 +906,7 @@ async function submitSessionForm(formData) {
     uiState.screen = "ballot";
     renderApp();
   } catch (error) {
-    uiState.sessionNotice = "Nao foi possivel liberar a urna no Firestore.";
+    uiState.sessionNotice = "Nao foi possivel liberar a urna no Supabase.";
     console.error(error);
     renderApp();
   }
@@ -1046,7 +1008,7 @@ async function submitAccessForm(formData) {
     uiState.accessEditorOpen = false;
     renderApp();
   } catch (error) {
-    uiState.accessNotice = "Nao foi possivel salvar o acesso no Firestore.";
+    uiState.accessNotice = "Nao foi possivel salvar o acesso no Supabase.";
     console.error(error);
     renderApp();
   }
@@ -1246,7 +1208,7 @@ async function submitCandidateForm(form) {
     uiState.candidateEditorOpen = false;
     renderApp();
   } catch (error) {
-    uiState.candidateNotice = buildFirestoreErrorMessage("Nao foi possivel salvar a chapa no Firestore.", error);
+    uiState.candidateNotice = buildSupabaseErrorMessage("Nao foi possivel salvar a chapa no Supabase.", error);
     console.error(error);
     renderApp();
   } finally {
@@ -1274,7 +1236,7 @@ async function toggleAccessActive(accessId) {
 
     renderApp();
   } catch (error) {
-    uiState.accessNotice = "Nao foi possivel atualizar o acesso no Firestore.";
+    uiState.accessNotice = "Nao foi possivel atualizar o acesso no Supabase.";
     console.error(error);
     renderApp();
   }
@@ -1302,7 +1264,7 @@ async function deleteCandidate(candidateId) {
 
     renderApp();
   } catch (error) {
-    uiState.candidateNotice = "Nao foi possivel remover a chapa no Firestore.";
+    uiState.candidateNotice = "Nao foi possivel remover a chapa no Supabase.";
     console.error(error);
     renderApp();
   }
@@ -1436,75 +1398,10 @@ async function confirmVote() {
       renderApp();
     }, FINISH_DELAY_MS);
   } catch (error) {
-    uiState.ballotAlert = "Nao foi possivel registrar o voto no Firestore.";
+    uiState.ballotAlert = "Nao foi possivel registrar o voto no Supabase.";
     console.error(error);
     renderApp();
   }
-}
-
-function confirmVoteLegacy() {
-  const mesario = getCurrentAccess();
-  const session = getActiveSession();
-  if (!mesario || mesario.accessKind !== "MESARIO" || !session) {
-    returnToMesarioPanel("Sessão de votação indisponível. Gere um novo token para continuar.");
-    renderApp();
-    return;
-  }
-
-  if (session.status === "Votou" || appState.votes.some((vote) => vote.sessionId === session.id)) {
-    returnToMesarioPanel(`O token ${session.token} já foi utilizado. Gere um novo token para outra votação.`);
-    renderApp();
-    return;
-  }
-
-  const candidate = getCurrentBallotCandidate();
-  let voteType = "Válido";
-  let candidateNumber = uiState.ballotDigits;
-  let candidateName = candidate ? candidate.name : "";
-
-  if (uiState.ballotBlank && uiState.ballotDigits.length === 0) {
-    voteType = "Em Branco";
-    candidateNumber = "";
-    candidateName = "";
-  } else if (uiState.ballotDigits.length !== 3) {
-    uiState.ballotAlert = "Digite os 3 dígitos do candidato ou escolha BRANCO.";
-    renderApp();
-    return;
-  } else if (!candidate) {
-    voteType = "Nulo";
-    candidateName = "";
-  }
-
-  const voteTime = new Date().toISOString();
-  appState.votes.unshift({
-    id: makeId(),
-    sessionId: session.id,
-    token: session.token,
-    createdAt: voteTime,
-    candidateNumber,
-    candidateName,
-    voteType,
-    voterType: session.voterType,
-    unitId: session.unitId,
-    unitName: session.unitName,
-    mesarioName: mesario.name,
-    mesarioEmail: mesario.email,
-  });
-
-  session.status = "Votou";
-  session.usedAt = voteTime;
-  persistState(appState);
-
-  resetBallotState();
-  uiState.screen = "finish";
-  playBallotFinishSound();
-  renderApp();
-
-  clearTimeout(finishTimer);
-  finishTimer = window.setTimeout(() => {
-    returnToMesarioPanel(`Votação concluída. Token ${session.token} finalizado para ${session.voterType}.`);
-    renderApp();
-  }, FINISH_DELAY_MS);
 }
 
 function playBallotFinishSound() {
@@ -1614,7 +1511,7 @@ function renderScreen() {
     return renderAppFrame(renderStatusScreen("Falha na sincronizacao", stateSyncError));
   }
   if (!isStateReady || !isSeedCheckComplete) {
-    return renderAppFrame(renderStatusScreen("Conectando ao Firestore", "Carregando a base da votacao em tempo real."));
+    return renderAppFrame(renderStatusScreen("Conectando ao Supabase", "Carregando a base da votacao em tempo real."));
   }
   if (uiState.screen === "admin") {
     return renderAppFrame(renderAdminScreen());

@@ -41,12 +41,10 @@ Aplicação web estática para simular uma votação escolar com login de mesár
 
 ## Persistência
 
-Os dados são salvos no `localStorage` do navegador. Isso significa que:
+Os dados são salvos no Supabase e sincronizados em tempo real entre a tela do mesário e as urnas. A gravação usa controle de versão para não sobrescrever alterações concorrentes.
 
-- os dados ficam vinculados ao navegador usado no teste
-- limpar o armazenamento local reinicia a base
-- esta versão é ideal como protótipo funcional local
+Antes de iniciar a aplicação, execute o script `supabase.sql` no projeto Supabase e preencha `supabase-config.js` com a URL e a chave pública. Consulte `SUPABASE.md` para o passo a passo completo.
 
 ## Próximo passo recomendado
 
-Conectar a interface a um backend e banco de dados reais para autenticação segura, persistência centralizada e auditoria formal das votações.
+O login atual ainda é controlado pela própria aplicação. Antes de usar o sistema em uma eleição real, migre as contas para Supabase Auth e aplique políticas RLS vinculadas aos usuários autenticados.
