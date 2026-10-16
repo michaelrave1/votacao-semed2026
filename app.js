@@ -725,10 +725,14 @@ async function submitDatabaseReset(formData) {
     uiState.databaseResetNotice = `${result.removedVotes} voto(s), ${result.removedSessions} token(s) e ${result.removedAssignments} liberacao(oes) foram apagados.`;
     uiState.databaseResetNoticeType = "success";
   } catch (error) {
-    uiState.databaseResetNotice =
-      error?.code === "RESET_PASSWORD_INVALID"
-        ? "Senha incorreta. A votacao nao foi alterada."
-        : "Nao foi possivel apagar os dados da votacao no Supabase.";
+    if (error?.code === "RESET_PASSWORD_INVALID") {
+      uiState.databaseResetNotice = "Senha incorreta. A votacao nao foi alterada.";
+    } else if (error?.code === "PGRST202") {
+      uiState.databaseResetNotice =
+        "A funcao de limpeza ainda nao existe no Supabase. Execute novamente o arquivo supabase.sql no SQL Editor.";
+    } else {
+      uiState.databaseResetNotice = "Nao foi possivel apagar os dados da votacao no Supabase.";
+    }
     uiState.databaseResetNoticeType = "error";
     console.error(error);
   } finally {
