@@ -1,6 +1,7 @@
 import {
   createEmptyElectionState,
   ensureElectionSeed,
+  resetElectionVotingData,
   runElectionStateTransaction,
   subscribeToElectionState,
 } from "./supabase-store.js";
@@ -203,6 +204,9 @@ const uiState = {
   candidateDraftTypology: "",
   candidateDraftUnitId: "",
   candidateEditorOpen: false,
+  databaseResetNotice: "",
+  databaseResetNoticeType: "",
+  databaseResetBusy: false,
 };
 
 const appRoot = document.querySelector("#app");
@@ -562,6 +566,8 @@ function handleClick(event) {
     uiState.adminTab = value;
     uiState.accessNotice = "";
     uiState.candidateNotice = "";
+    uiState.databaseResetNotice = "";
+    uiState.databaseResetNoticeType = "";
     uiState.accessEditorOpen = false;
     uiState.unitEditorOpen = false;
     uiState.candidateEditorOpen = false;
@@ -685,6 +691,50 @@ function handleSubmit(event) {
     event.preventDefault();
     submitCandidateForm(form);
   }
+
+  if (form.id === "database-reset-form") {
+    event.preventDefault();
+    submitDatabaseReset(new FormData(form));
+  }
+}
+
+async function submitDatabaseReset(formData) {
+  const password = String(formData.get("resetPassword") || "");
+  uiState.databaseResetNotice = "";
+  uiState.databaseResetNoticeType = "";
+
+  if (!password) {
+    uiState.databaseResetNotice = "Informe a senha para habilitar a limpeza.";
+    uiState.databaseResetNoticeType = "error";
+    renderApp();
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "Esta acao apagara definitivamente todos os votos, tokens e liberacoes de urna. Deseja continuar?",
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  uiState.databaseResetBusy = true;
+  renderApp();
+
+  try {
+    const result = await resetElectionVotingData(password);
+    uiState.databaseResetNotice = `${result.removedVotes} voto(s), ${result.removedSessions} token(s) e ${result.removedAssignments} liberacao(oes) foram apagados.`;
+    uiState.databaseResetNoticeType = "success";
+  } catch (error) {
+    uiState.databaseResetNotice =
+      error?.code === "RESET_PASSWORD_INVALID"
+        ? "Senha incorreta. A votacao nao foi alterada."
+        : "Nao foi possivel apagar os dados da votacao no Supabase.";
+    uiState.databaseResetNoticeType = "error";
+    console.error(error);
+  } finally {
+    uiState.databaseResetBusy = false;
+    renderApp();
+  }
 }
 
 function handleInput(event) {
@@ -801,6 +851,9 @@ function submitLogin(formData) {
   uiState.activeSessionId = null;
   uiState.loginError = "";
   uiState.sessionNotice = "";
+  uiState.databaseResetNotice = "";
+  uiState.databaseResetNoticeType = "";
+  uiState.databaseResetBusy = false;
   resetBallotState();
 
   if (account.accessKind === "ADMINISTRADOR") {
@@ -1908,6 +1961,7 @@ function renderAdminScreen() {
           ${renderTab("candidates", "Chapas")}
           ${renderTab("sessions", "Tokens")}
           ${renderTab("results", "Resultados")}
+          ${renderTab("database", "Limpar votação")}
         </nav>
 
         ${renderAdminTabBody()}
@@ -1948,7 +2002,53 @@ function renderAdminTabBody() {
   if (uiState.adminTab === "sessions") {
     return renderSessionsTab();
   }
-  return renderResultsTab();
+  if (uiState.adminTab === "results") {
+    return renderResultsTab();
+  }
+  return renderDatabaseResetTab();
+}
+
+function renderDatabaseResetTab() {
+  const noticeClass = uiState.databaseResetNoticeType === "success" ? "flash-success" : "flash-error";
+
+  return `
+    <section class="stack">
+      <article class="table-card stack">
+        <div>
+          <span class="eyebrow">Operação protegida</span>
+          <h2 class="section-title">Apagar todos os dados da votação</h2>
+          <p class="subtle">Use esta opção somente para iniciar uma nova votação com a base zerada.</p>
+        </div>
+
+        <div class="flash flash-error">
+          Esta ação é definitiva. Serão apagados todos os votos, tokens, sessões e liberações de urna.
+          Unidades, acessos administrativos, mesários e chapas serão preservados.
+        </div>
+
+        ${uiState.databaseResetNotice ? `<div class="flash ${noticeClass}">${escapeHtml(uiState.databaseResetNotice)}</div>` : ""}
+
+        <form id="database-reset-form" class="field-grid" style="max-width: 520px;">
+          <div class="field field-light">
+            <label for="database-reset-password">Senha de autorização</label>
+            <input
+              id="database-reset-password"
+              name="resetPassword"
+              type="password"
+              autocomplete="current-password"
+              placeholder="Digite a senha de limpeza"
+              required
+              ${uiState.databaseResetBusy ? "disabled" : ""}
+            >
+          </div>
+          <div class="actions-row">
+            <button class="btn btn-danger" type="submit" ${uiState.databaseResetBusy ? "disabled" : ""}>
+              ${uiState.databaseResetBusy ? "Apagando..." : "Apagar toda a votação"}
+            </button>
+          </div>
+        </form>
+      </article>
+    </section>
+  `;
 }
 
 function renderAccessTab() {

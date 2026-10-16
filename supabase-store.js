@@ -196,6 +196,21 @@ export async function replaceElectionState(nextState) {
   });
 }
 
+export async function resetElectionVotingData(password) {
+  const { data, error } = await getClient().rpc("reset_urna_voting_data", {
+    p_password: password,
+  });
+  throwIfError(error);
+
+  if (!data?.success) {
+    const passwordError = new Error("Senha de limpeza incorreta.");
+    passwordError.code = "RESET_PASSWORD_INVALID";
+    throw passwordError;
+  }
+
+  return data;
+}
+
 export async function runElectionStateTransaction(mutator) {
   for (let attempt = 1; attempt <= MAX_TRANSACTION_ATTEMPTS; attempt += 1) {
     const row = await readStateRow();

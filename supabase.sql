@@ -8,6 +8,8 @@ create table if not exists public.urna_state (
   constraint urna_state_singleton check (id = 'current')
 );
 
+create extension if not exists pgcrypto with schema extensions;
+
 alter table public.urna_state enable row level security;
 
 drop policy if exists "Leitura publica do estado da urna" on public.urna_state;
@@ -59,10 +61,66 @@ begin
 end;
 $$;
 
+create or replace function public.reset_urna_voting_data(p_password text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  password_hash constant text := '97f4b853a96b9b759c5625c05c9a5bdf1b73c7a24a905fecea23eeff071e5c78';
+  password_salt constant text := 'urna-reset-2026-7c9f2e41';
+  current_voting jsonb;
+  removed_votes integer := 0;
+  removed_sessions integer := 0;
+  removed_assignments integer := 0;
+begin
+  if pg_catalog.encode(
+    extensions.digest(pg_catalog.convert_to(p_password || ':' || password_salt, 'UTF8'), 'sha256'),
+    'hex'
+  ) <> password_hash then
+    return pg_catalog.jsonb_build_object('success', false);
+  end if;
+
+  select voting
+  into current_voting
+  from public.urna_state
+  where id = 'current'
+  for update;
+
+  if not found then
+    raise exception 'Estado da urna nao encontrado.' using errcode = 'P0002';
+  end if;
+
+  removed_votes := pg_catalog.jsonb_array_length(coalesce(current_voting -> 'votes', '[]'::jsonb));
+  removed_sessions := pg_catalog.jsonb_array_length(coalesce(current_voting -> 'votingSessions', '[]'::jsonb));
+  removed_assignments := pg_catalog.jsonb_array_length(coalesce(current_voting -> 'boothAssignments', '[]'::jsonb));
+
+  update public.urna_state
+  set voting = pg_catalog.jsonb_build_object(
+        'boothAssignments', '[]'::jsonb,
+        'votingSessions', '[]'::jsonb,
+        'votes', '[]'::jsonb
+      ),
+      version = version + 1,
+      updated_at = now()
+  where id = 'current';
+
+  return pg_catalog.jsonb_build_object(
+    'success', true,
+    'removedVotes', removed_votes,
+    'removedSessions', removed_sessions,
+    'removedAssignments', removed_assignments
+  );
+end;
+$$;
+
 revoke execute on function public.ensure_urna_state(jsonb, jsonb) from public;
 revoke execute on function public.compare_and_set_urna_state(bigint, jsonb, jsonb) from public;
+revoke execute on function public.reset_urna_voting_data(text) from public;
 grant execute on function public.ensure_urna_state(jsonb, jsonb) to anon, authenticated;
 grant execute on function public.compare_and_set_urna_state(bigint, jsonb, jsonb) to anon, authenticated;
+grant execute on function public.reset_urna_voting_data(text) to anon, authenticated;
 
 do $$
 begin
